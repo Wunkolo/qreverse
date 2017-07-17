@@ -10,48 +10,16 @@
 #include <vector>
 #include <functional>
 
+#define VERBOSE
 #include "qreverse.hpp"
 
 #include <chrono>
-template<typename TimeT = std::chrono::nanoseconds>
-struct Measure
-{
-	template<typename F, typename ...Args>
-	static typename TimeT::rep Execute(F&& func, Args&&... args)
-	{
-		auto start = std::chrono::high_resolution_clock::now();
-		std::forward<decltype(func)>(func)(std::forward<Args>(args)...);
-		auto duration = std::chrono::duration_cast< TimeT>(
-			std::chrono::high_resolution_clock::now() - start
-		);
-		return duration.count();
-	}
-
-	template<typename F, typename ...Args>
-	static auto Duration(F&& func, Args&&... args)
-	{
-		auto start = std::chrono::high_resolution_clock::now();
-		std::forward<decltype(func)>(func)(std::forward<Args>(args)...);
-		return std::chrono::duration_cast<TimeT>(
-			std::chrono::high_resolution_clock::now()-start
-		);
-	} 
-};
-
-template< typename ElmType,  std::size_t Size >
-void PrintArray(const std::array<ElmType,Size>& Array)
-{
-	for( const ElmType& Value : Array )
-	{
-		std::cout << +Value << ',';
-	}
-	std::cout << std::endl;
-}
 
 using ElementType = std::int8_t;
 constexpr std::size_t ElementCount = 82;
 
 void Benchmark(std::array<ElementType, ElementCount>& Array);
+void PrintArray(const std::array<ElementType, ElementCount>& Array);
 
 int main()
 {
@@ -75,13 +43,40 @@ int main()
 		:
 		"NotReversed"
 	);
-
+	
+#ifndef VERBOSE
 	Benchmark(Numbers);
+#endif
 
 	std::cin.ignore();
 
 	return EXIT_SUCCESS;
 }
+
+template<typename TimeT = std::chrono::nanoseconds>
+struct Measure
+{
+	template<typename F, typename ...Args>
+	static typename TimeT::rep Execute(F&& func, Args&&... args)
+	{
+		auto start = std::chrono::high_resolution_clock::now();
+		std::forward<decltype(func)>(func)(std::forward<Args>(args)...);
+		auto duration = std::chrono::duration_cast< TimeT>(
+			std::chrono::high_resolution_clock::now() - start
+			);
+		return duration.count();
+	}
+
+	template<typename F, typename ...Args>
+	static auto Duration(F&& func, Args&&... args)
+	{
+		auto start = std::chrono::high_resolution_clock::now();
+		std::forward<decltype(func)>(func)(std::forward<Args>(args)...);
+		return std::chrono::duration_cast<TimeT>(
+			std::chrono::high_resolution_clock::now() - start
+			);
+	}
+};
 
 void Benchmark(std::array<ElementType, ElementCount>& Array)
 {
@@ -119,4 +114,13 @@ void Benchmark(std::array<ElementType, ElementCount>& Array)
 	Duration /= COUNT;
 
 	std::cout << "\tAvg: " << Duration.count() << "ns" << std::endl;
+}
+
+void PrintArray(const std::array<ElementType, ElementCount>& Array)
+{
+	for( const ElementType& Value : Array )
+	{
+		std::cout << +Value << ',';
+	}
+	std::cout << std::endl;
 }
