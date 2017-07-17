@@ -19,7 +19,7 @@ inline void qreverse_naive( Type* Values,std::size_t Start, std::size_t End)
 		// 512-bit AVX2
 		while( (End - Start + 1)/2 >= (sizeof(__m256i)*2/sizeof(std::uint64_t)))
 		{
-			printf("\033[1;31mAVX_512 %zu %zu\n",Start,End);
+			printf("AVX_512 %zu %zu\n",Start,End);
 			constexpr std::size_t Quantum = (sizeof(__m256i)*2/sizeof(std::uint64_t));
 			__m256i A1 = _mm256_loadu_si256(reinterpret_cast<__m256i*>(Values+Start));
 			__m256i A2 = _mm256_loadu_si256(reinterpret_cast<__m256i*>(Values+Start)+1);
@@ -39,7 +39,7 @@ inline void qreverse_naive( Type* Values,std::size_t Start, std::size_t End)
 		// 256-bit AVX2
 		while( (End - Start + 1)/2 >= (sizeof(__m256i)/sizeof(std::uint64_t)) )
 		{
-			printf("\033[1;31mAVX_256 %zu %zu\n",Start,End);
+			printf("AVX_256 %zu %zu\n",Start,End);
 			constexpr std::size_t Quantum = sizeof(__m256i)/sizeof(std::uint64_t);
 			__m256i A = _mm256_loadu_si256(reinterpret_cast<__m256i*>(Values+Start));
 			__m256i B = _mm256_loadu_si256(reinterpret_cast<__m256i*>(Values+End+1)-1);
@@ -53,7 +53,7 @@ inline void qreverse_naive( Type* Values,std::size_t Start, std::size_t End)
 		// 128-bit SSSe3
 		while( (End - Start + 1)/2 >= (sizeof(__m128i)/sizeof(std::uint64_t)) )
 		{
-			printf("\033[1;33mSSSE3_128 %zu %zu\n",Start,End);
+			printf("SSSE3_128 %zu %zu\n",Start,End);
 			constexpr std::size_t Quantum = sizeof(__m128i)/sizeof(std::uint64_t);
 			__m128i A = _mm_loadu_si128(reinterpret_cast<__m128i*>(Values+Start));
 			__m128i B = _mm_loadu_si128(reinterpret_cast<__m128i*>(Values+End+1)-1);
@@ -71,7 +71,7 @@ inline void qreverse_naive( Type* Values,std::size_t Start, std::size_t End)
 		// 256-bit AVX2
 		while( (End - Start + 1)/2 >= (sizeof(__m256i)/sizeof(std::uint32_t)) )
 		{
-			printf("\033[1;31mAVX_256 %zu %zu\n",Start,End);
+			printf("AVX_256 %zu %zu\n",Start,End);
 			const __m256i ShuffleRev = _mm256_setr_epi32(
 				7,6,5,4,3,2,1,0
 				);
@@ -88,7 +88,7 @@ inline void qreverse_naive( Type* Values,std::size_t Start, std::size_t End)
 		// 128-bit SSSe3
 		while( (End - Start + 1)/2 >= (sizeof(__m128i)/sizeof(std::uint32_t)) )
 		{
-			printf("\033[1;33mSSSE3_128 %zu %zu\n",Start,End);
+			printf("SSSE3_128 %zu %zu\n",Start,End);
 
 			__m128i A = _mm_loadu_si128(reinterpret_cast<__m128i*>(Values+Start));
 			__m128i B = _mm_loadu_si128(reinterpret_cast<__m128i*>(Values+End+1)-1);
@@ -106,7 +106,7 @@ inline void qreverse_naive( Type* Values,std::size_t Start, std::size_t End)
 		// 256-bit AVX2
 		while( (End - Start + 1)/2 >= (sizeof(__m256i)/sizeof(std::uint16_t)) )
 		{
-			printf("\033[1;31mAVX_256 %zu %zu\n",Start,End);
+			printf("AVX_256 %zu %zu\n",Start,End);
 
 			const __m256i ShuffleRev = _mm256_set_epi8(
 				1, 0, 3, 2, 5, 4, 7, 6, 9, 8, 11, 10, 13, 12, 15, 14,
@@ -127,7 +127,7 @@ inline void qreverse_naive( Type* Values,std::size_t Start, std::size_t End)
 		// 128-bit SSSe3
 		while( (End - Start + 1)/2 >= (sizeof(__m128i)/sizeof(std::uint16_t)) )
 		{
-			printf("\033[1;33mSSSE3_128 %zu %zu\n",Start,End);
+			printf("SSSE3_128 %zu %zu\n",Start,End);
 
 			const __m128i ShuffleRev = _mm_set_epi8(1, 0, 3, 2, 5, 4, 7, 6, 9, 8, 11, 10, 13, 12, 15, 14);
 
@@ -147,7 +147,7 @@ inline void qreverse_naive( Type* Values,std::size_t Start, std::size_t End)
 		// 256-bit AVX2
 		while( (End - Start + 1)/2 >= (sizeof(__m256i)) )
 		{
-			printf("\033[1;31mAVX_256 %zu %zu\n",Start,End);
+			printf("AVX_256 %zu %zu\n",Start,End);
 
 			const __m256i ShuffleRev = _mm256_set_epi8(
 				0, 1, 2, 3, 4, 5, 6, 7, 8, 9,10,11,12,13,14,15,
@@ -168,7 +168,7 @@ inline void qreverse_naive( Type* Values,std::size_t Start, std::size_t End)
 		// 128-bit SSSe3
 		while( (End - Start + 1)/2 >= (sizeof(__m128i)) )
 		{
-			printf("\033[1;33mSSSE3_128 %zu %zu\n",Start,End);
+			printf("SSSE3_128 %zu %zu\n",Start,End);
 
 			const __m128i ShuffleRev = _mm_set_epi8(0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15);
 
@@ -184,7 +184,7 @@ inline void qreverse_naive( Type* Values,std::size_t Start, std::size_t End)
 		// 64-bit BSWAP
 		while( (End - Start + 1)/2 >= (sizeof(std::uint64_t)) )
 		{
-			printf("\033[1;35mbswap_64 %zu %zu\n",Start,End);
+			printf("bswap_64 %zu %zu\n",Start,End);
 			std::uint64_t A = __builtin_bswap64(*reinterpret_cast<std::uint64_t*>(Values+Start));
 			std::uint64_t B = __builtin_bswap64(*(reinterpret_cast<std::uint64_t*>(Values+End+1)-1));
 			*(reinterpret_cast<std::uint64_t*>(Values+Start)) = B;
@@ -195,7 +195,7 @@ inline void qreverse_naive( Type* Values,std::size_t Start, std::size_t End)
 		// 32-bit BSWAP
 		while( (End - Start + 1)/2 >= (sizeof(std::uint32_t)) )
 		{
-			printf("\033[1;35mbswap_32 %zu %zu\n",Start,End);
+			printf("bswap_32 %zu %zu\n",Start,End);
 			std::uint32_t A = __builtin_bswap32(*reinterpret_cast<std::uint32_t*>(Values+Start));
 			std::uint32_t B = __builtin_bswap32(*(reinterpret_cast<std::uint32_t*>(Values+End+1)-1));
 			*reinterpret_cast<std::uint32_t*>(Values+Start) = B;
@@ -206,7 +206,7 @@ inline void qreverse_naive( Type* Values,std::size_t Start, std::size_t End)
 		// 16-bit BSWAP
 		while( (End - Start + 1)/2 >= (sizeof(std::uint16_t)) )
 		{
-			printf("\033[1;35mbwap_16 %zu %zu\n",Start,End);
+			printf("bwap_16 %zu %zu\n",Start,End);
 			std::uint16_t A = __builtin_bswap16(*reinterpret_cast<std::uint16_t*>(Values+Start));
 			std::uint16_t B = __builtin_bswap16(*(reinterpret_cast<std::uint16_t*>(Values+End+1)-1));
 			*reinterpret_cast<std::uint16_t*>(Values+Start) = B;
@@ -223,13 +223,13 @@ inline void qreverse_naive( Type* Values,std::size_t Start, std::size_t End)
 	{
 		while( Start < End )
 		{
-			printf("\033[1;36mNaive Swap %zu %zu : Diff: %zu\n",Start,End,End-Start);
+			printf("Naive Swap %zu %zu : Diff: %zu\n",Start,End,End-Start);
 			std::swap(Values[Start],Values[End]);
 			++Start;
 			--End;
 		}
 	}
-	printf("\033[0m");
+	printf("");
 }
 
 template< typename Type>

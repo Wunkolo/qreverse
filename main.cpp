@@ -106,12 +106,12 @@ int main()
 	PrintArray(Numbers);
 
 	printf(
-		"-----%s\033[0m-----\n",
+		"-----%s-----\n",
 		std::is_sorted(Numbers.begin(),Numbers.end(),std::greater<ElementType>())
 		?
-		"\033[1;32mReversed"
+		"Reversed"
 		:
-		"\033[1:31mNotReversed"
+		"NotReversed"
 	);
 
 	return EXIT_SUCCESS;
