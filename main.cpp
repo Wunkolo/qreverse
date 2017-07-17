@@ -49,10 +49,13 @@ void PrintArray(const std::array<ElmType,Size>& Array)
 }
 
 using ElementType = std::int8_t;
+constexpr std::size_t ElementCount = 82;
+
+void Benchmark(std::array<ElementType, ElementCount>& Array);
 
 int main()
 {
-	std::array<ElementType,82> Numbers;
+	std::array<ElementType,ElementCount> Numbers;
 	std::iota(Numbers.begin(), Numbers.end(), 0);
 	printf("ElementSize: %zu bytes ElementCount: %zu\n", sizeof(ElementType), Numbers.size());
 
@@ -73,7 +76,15 @@ int main()
 		"NotReversed"
 	);
 
+	Benchmark(Numbers);
 
+	std::cin.ignore();
+
+	return EXIT_SUCCESS;
+}
+
+void Benchmark(std::array<ElementType, ElementCount>& Array)
+{
 	/// Benchmark
 #define COUNT 10000
 
@@ -82,12 +93,12 @@ int main()
 	/// std::reverse
 	std::cout << "-----------std::reverse" << std::endl;
 	Duration = std::chrono::nanoseconds::zero();
-	for( std::size_t i = 0; i < COUNT; i++)
+	for( std::size_t i = 0; i < COUNT; i++ )
 	{
 		Duration += Measure<>::Duration(
-			std::reverse<decltype(Numbers.begin())>,
-			Numbers.begin(),
-			Numbers.end()
+			std::reverse<decltype(Array.begin())>,
+			Array.begin(),
+			Array.end()
 		);
 	}
 	Duration /= COUNT;
@@ -97,20 +108,15 @@ int main()
 	/// qreverse
 	std::cout << "-----------qreverse" << std::endl;
 	Duration = std::chrono::nanoseconds::zero();
-	for( std::size_t i = 0; i < COUNT; i++)
+	for( std::size_t i = 0; i < COUNT; i++ )
 	{
 		Duration += Measure<>::Duration(
 			qreverse<ElementType>,
-			Numbers.data(),
-			Numbers.size()
+			Array.data(),
+			Array.size()
 		);
 	}
 	Duration /= COUNT;
 
 	std::cout << "\tAvg: " << Duration.count() << "ns" << std::endl;
-
-	std::cin.ignore();
-
-	return EXIT_SUCCESS;
 }
-
