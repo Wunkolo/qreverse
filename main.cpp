@@ -75,7 +75,7 @@ int main()
 
 
 	/// Benchmark
-#define COUNT 10
+#define COUNT 10000
 
 	std::chrono::nanoseconds Duration;
 
