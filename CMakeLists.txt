@@ -1,0 +1,19 @@
+cmake_minimum_required( VERSION 3.2.2 )
+project( SimdRev )
+
+set( CMAKE_CXX_STANDARD 14 )
+set( CMAKE_COLOR_MAKEFILE ON )
+set( CMAKE_VERBOSE_MAKEFILE ON )
+
+add_executable(
+	qreversetest
+	main.cpp
+)
+
+#set( CMAKE_BUILD_TYPE Debug )
+
+add_definitions( -m64 )
+add_definitions( -march=skylake )
+add_definitions( -Ofast )
+add_definitions( -Wall )
+add_definitions( -Wextra )
