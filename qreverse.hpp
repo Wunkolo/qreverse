@@ -4,6 +4,76 @@
 
 #include <immintrin.h>
 
+#if defined(_MSC_VER)
+
+inline std::uint64_t Swap64(std::uint64_t x)
+{
+	return _byteswap_uint64(x);
+}
+
+inline std::uint32_t Swap32(std::uint32_t x)
+{
+	return _byteswap_ulong(x);
+}
+
+inline std::uint16_t Swap16(std::uint16_t x)
+{
+	return _byteswap_ushort(x);
+}
+
+#elif defined(__GNUC__) || defined(__clang__)
+
+inline std::uint64_t Swap64(std::uint64_t x)
+{
+	return __builtin_bswap64(x);
+}
+
+inline std::uint32_t Swap32(std::uint32_t x)
+{
+	return __builtin_bswap32(x);
+}
+
+inline std::uint16_t Swap16(std::uint16_t x)
+{
+	return __builtin_bswap16(x);
+}
+
+#else
+
+inline std::uint64_t Swap64(std::uint64_t x)
+{
+	return (
+		((x & 0x00000000000000FF) << 56) |
+		((x & 0x000000000000FF00) << 40) |
+		((x & 0x0000000000FF0000) << 24) |
+		((x & 0x00000000FF000000) << 8) |
+		((x & 0x000000FF00000000) >> 8) |
+		((x & 0x0000FF0000000000) >> 24) |
+		((x & 0x00FF000000000000) >> 40) |
+		((x & 0xFF00000000000000) >> 56)
+		);
+}
+
+inline std::uint32_t Swap32(std::uint32_t x)
+{
+	return(
+		((x & 0x000000FF) << 24) |
+		((x & 0x0000FF00) << 8) |
+		((x & 0x00FF0000) >> 8) |
+		((x & 0xFF000000) >> 24)
+		);
+}
+
+inline std::uint16_t Swap16(std::uint16_t x)
+{
+	return (
+		((x & 0x00FF) << 8) |
+		((x & 0xFF00) >> 8)
+		);
+}
+
+#endif
+
 // naive implementation
 template< typename Type>
 inline void qreverse_naive( Type* Values,std::size_t Start, std::size_t End)
@@ -181,34 +251,34 @@ inline void qreverse_naive( Type* Values,std::size_t Start, std::size_t End)
 			Start += sizeof(__m128i);
 			End -= sizeof(__m128i);
 		}
-		// 64-bit BSWAP
+		// 64-bit BSwap
 		while( (End - Start + 1)/2 >= (sizeof(std::uint64_t)) )
 		{
-			printf("bswap_64 %zu %zu\n",Start,End);
-			std::uint64_t A = __builtin_bswap64(*reinterpret_cast<std::uint64_t*>(Values+Start));
-			std::uint64_t B = __builtin_bswap64(*(reinterpret_cast<std::uint64_t*>(Values+End+1)-1));
+			printf("bSwap_64 %zu %zu\n",Start,End);
+			std::uint64_t A = Swap64(*reinterpret_cast<std::uint64_t*>(Values+Start));
+			std::uint64_t B = Swap64(*(reinterpret_cast<std::uint64_t*>(Values+End+1)-1));
 			*(reinterpret_cast<std::uint64_t*>(Values+Start)) = B;
 			*(reinterpret_cast<std::uint64_t*>(Values+End+1)-1) = A;
 			Start += sizeof(std::uint64_t);
 			End -= sizeof(std::uint64_t);
 		}
-		// 32-bit BSWAP
+		// 32-bit BSwap
 		while( (End - Start + 1)/2 >= (sizeof(std::uint32_t)) )
 		{
-			printf("bswap_32 %zu %zu\n",Start,End);
-			std::uint32_t A = __builtin_bswap32(*reinterpret_cast<std::uint32_t*>(Values+Start));
-			std::uint32_t B = __builtin_bswap32(*(reinterpret_cast<std::uint32_t*>(Values+End+1)-1));
+			printf("bSwap_32 %zu %zu\n",Start,End);
+			std::uint32_t A = Swap32(*reinterpret_cast<std::uint32_t*>(Values+Start));
+			std::uint32_t B = Swap32(*(reinterpret_cast<std::uint32_t*>(Values+End+1)-1));
 			*reinterpret_cast<std::uint32_t*>(Values+Start) = B;
 			*(reinterpret_cast<std::uint32_t*>(Values+End+1)-1) = A;
 			Start += sizeof(std::uint32_t);
 			End -= sizeof(std::uint32_t);
 		}
-		// 16-bit BSWAP
+		// 16-bit BSwap
 		while( (End - Start + 1)/2 >= (sizeof(std::uint16_t)) )
 		{
 			printf("bwap_16 %zu %zu\n",Start,End);
-			std::uint16_t A = __builtin_bswap16(*reinterpret_cast<std::uint16_t*>(Values+Start));
-			std::uint16_t B = __builtin_bswap16(*(reinterpret_cast<std::uint16_t*>(Values+End+1)-1));
+			std::uint16_t A = Swap16(*reinterpret_cast<std::uint16_t*>(Values+Start));
+			std::uint16_t B = Swap16(*(reinterpret_cast<std::uint16_t*>(Values+End+1)-1));
 			*reinterpret_cast<std::uint16_t*>(Values+Start) = B;
 			*(reinterpret_cast<std::uint16_t*>(Values+End+1)-1) = A;
 			Start += sizeof(std::uint16_t);
