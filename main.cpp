@@ -12,8 +12,6 @@
 
 #include "qreverse.hpp"
 
-#define COUNT 1
-
 #include <chrono>
 template<typename TimeT = std::chrono::nanoseconds>
 struct Measure
@@ -55,21 +53,34 @@ using ElementType = std::int8_t;
 int main()
 {
 	std::array<ElementType,82> Numbers;
-
 	std::iota(Numbers.begin(), Numbers.end(), 0);
+	printf("ElementSize: %zu bytes ElementCount: %zu\n", sizeof(ElementType), Numbers.size());
 
 	std::cout << "Before:\t" << std::endl;
 	PrintArray(Numbers);
 
-	///
-	std::chrono::nanoseconds Duration(0);
+	qreverse<ElementType>(Numbers.data(), Numbers.size());
+
+	std::cout << "After:\t" << std::endl;
+	PrintArray(Numbers);
+
+	printf(
+		"-----%s-----\n",
+		std::is_sorted(Numbers.begin(), Numbers.end(), std::greater<ElementType>())
+		?
+		"Reversed"
+		:
+		"NotReversed"
+	);
 
 
-	printf("ElementSize: %zu bytes ElementCount: %zu\n",sizeof(ElementType),Numbers.size());
+	/// Benchmark
+#define COUNT 10
 
+	std::chrono::nanoseconds Duration;
 
 	/// std::reverse
-	std::cout << "std::reverse" << std::endl;
+	std::cout << "-----------std::reverse" << std::endl;
 	Duration = std::chrono::nanoseconds::zero();
 	for( std::size_t i = 0; i < COUNT; i++)
 	{
@@ -82,10 +93,9 @@ int main()
 	Duration /= COUNT;
 
 	std::cout << "\tAvg: " << Duration.count() << "ns" << std::endl;
-	//std::cout << Duration.count() << ',';
 
 	/// qreverse
-	std::cout << "qreverse" << std::endl;
+	std::cout << "-----------qreverse" << std::endl;
 	Duration = std::chrono::nanoseconds::zero();
 	for( std::size_t i = 0; i < COUNT; i++)
 	{
@@ -97,22 +107,9 @@ int main()
 	}
 	Duration /= COUNT;
 
-	//std::cout << Duration.count() << std::endl;
-
 	std::cout << "\tAvg: " << Duration.count() << "ns" << std::endl;
 
-	///
-	std::cout << "After:\t" << std::endl;
-	PrintArray(Numbers);
-
-	printf(
-		"-----%s-----\n",
-		std::is_sorted(Numbers.begin(),Numbers.end(),std::greater<ElementType>())
-		?
-		"Reversed"
-		:
-		"NotReversed"
-	);
+	std::cin.ignore();
 
 	return EXIT_SUCCESS;
 }
