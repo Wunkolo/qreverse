@@ -15,7 +15,7 @@
 
 #include <chrono>
 
-using ElementType = std::int8_t;
+using ElementType = std::uint8_t;
 constexpr std::size_t ElementCount = 255;
 
 void Benchmark(std::array<ElementType, ElementCount>& Array);
