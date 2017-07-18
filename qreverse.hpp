@@ -79,9 +79,8 @@ inline std::uint16_t Swap16(std::uint16_t x)
 
 #endif
 
-// naive implementation
 template< typename Type>
-inline void qreverse_naive( Type* Values,std::size_t Start, std::size_t End)
+inline void qreverse_imp( Type* Values,std::size_t Start, std::size_t End)
 {
 	switch( sizeof(Type) )
 	{
@@ -330,6 +329,6 @@ inline void qreverse_naive( Type* Values,std::size_t Start, std::size_t End)
 template< typename Type>
 inline void qreverse( Type* Values, std::size_t Size)
 {
-	qreverse_naive( Values,0, Size-1 );
+	qreverse_imp( Values,0, Size-1 );
 }
 
