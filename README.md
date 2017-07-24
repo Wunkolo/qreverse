@@ -51,7 +51,7 @@ Without this limitation it is possible to accelerate the swapping of two element
 
 ## bswap
 
-The `bswap` instruction reverses the individual bytes of a register and is typically used to swap the `endian` of an integer to exchange between `host` and `network` byte-order(see `htons`,`htonl`,`ntohs`,`ntohl`). Most x86 compilers implement assembly intrinsics that you can put right into your C or C++ code to get the compiler to emit the `bswap` instruction:
+The `bswap` instruction reverses the individual bytes of a register and is typically used to swap the `endian` of an integer to exchange between `host` and `network` byte-order(see `htons`,`htonl`,`ntohs`,`ntohl`). Most x86 compilers implement assembly intrinsics that you can put right into your C or C++ code to get the compiler to emit the `bswap` instruction directly:
 
 **MSVC:**
 - `_byteswap_uint64`
@@ -93,6 +93,7 @@ inline std::uint32_t Swap32(std::uint32_t x)
 
 inline std::uint16_t Swap16(std::uint16_t x)
 {
+	// This tends to emit a 16-bit `ror` instruction
 	return (
 		((x & 0x00FF) <<  8) |
 		((x & 0xFF00) >>  8)
@@ -100,19 +101,19 @@ inline std::uint16_t Swap16(std::uint16_t x)
 }
 ```
 
-Most compilers are able to detect when an in-register endian-swap is being done and will emit `bswap` automatically or a simillar intrinsic for your target architecture(The ARM architecture has the `REV` instruction for armv6 or newer).
+Most compilers are able to detect when an in-register endian-swap is being done and will emit `bswap` automatically or a similar intrinsic for your target architecture(The ARM architecture has the `REV` instruction for **armv6** or newer). Note also that `bswap16` is basically just a 16-bit rotate of 1 byte aka a `ror` instruction.
 
-Now we can specialize our accelerated implementation for 1-byte elements that have no swap-related overloads. Given the size of our array we can determine exactly how many time's we're using our accelerated swap.
+**Now** we can specialize our accelerated implementation for 1-byte elements that have no swap-related overloads. Given the size of our array we can determine exactly how many times we using our new 4-byte swap trick.
 
-Using 32-bit bswaps, we can swap 4 elements from either end. So we get the half-size count that we used during a naive swap, and adjust our algorithm to adjust to the fact that are are doing 4 elements at once.
+Using 32-bit `bswap`s, we can swap 4 elements from either end at a time. So we get the half-size count that we used during a naive swap(when we cut our array in half and start swapping either end), and adjust our algorithm to the fact that we can now do 4 elements at once.
 
-Given an array of 11 bytes that we want to reverse. We divide by two to get the number of element-swaps we would have to do(integer arithmetic): `11/2 = 5` So we need `5` single-element swaps. Since we have a way to do `4` elements at once too, we can divide this `5` by `4` to know how many _4-element-bswaps` we we need to do: `5/4 = 1`. So we need only one `bswap-swap` and one `naive-swap`. This is already starting to feel like a speedup.
+Given an array of `11` bytes that we want to reverse. We divide by two to get the number of element-swaps we would have to do(integer arithmetic): `11/2 = 5` So we need `5` single-element swaps that we would have to do at either end. Since we have a way to do `4` elements at once too, we can integer-divide this result `5` by `4` to know how many _4-element-bswaps_ we we need to do(`5/4 = 1`). So we need only one `bswap`-swap and one `naive`-swap.
 
 ```cpp
 // Reverse an array of 1-byte elements(such as std::uint8_t)
 // A specialization of the above implementation for 1-byte elements
-// Does not call overloads
-// Accelerated using - bswap (32)
+// Does not call assignment or copy overloads
+// Accelerated using - 32-bit bswap instruction
 template<>
 void qReverse<std::uint8_t>( std::uint8_t* Array, std::size_t Count )
 {
@@ -152,9 +153,36 @@ void qReverse<std::uint8_t>( std::uint8_t* Array, std::size_t Count )
 }
 ```
 
-On my _i5-6100_ I found that `qReverse` would sort an array of 255 bytes in *40ns* while `std::reverse` would take *89ns* after _10,000,000_ automated trials making for a ~2.25 speedup! Let's augment even further with the *16* and *64* bit `bswap` to try and shear away more of our algorithm away from the naive swap.
+And now some benchmarks: on my _i3-6100_. I automated the benchmark process across several different array-sizes giving each array-size `10,000` array-reversal trials before getting an average execution time for for that specific array width. Using g++ compile flags: `-m64 -Ofast -march=skylake`.
 
-We can simply edit the `bswap` routine we already made and edit it to 16-bit and 64-bit types, size, and offsets. We also should make sure to place our smaller-sized swaps to the bottom and largest at the top of our chain of swap algorithms. That way our algorithm will move large chunks first, before it moves down to the smaller and eventually the work its way down to the naive swap(which it may not even have to do). Also since these `bswap`s work their way down and pick up right where the previous one left off, they start immediately after the previous so their `j` variable would be divided by the width of the current `bswap` to know how many times it should be called:
+   Element Count|std::reverse|  qReverse|Speedup Factor
+            --:|      ---|      ---|      --:|
+               8|        21 ns|        23 ns|          0.913
+              16|        22 ns|        23 ns|          0.957
+              32|        26 ns|        25 ns|        **1.040**
+              64|        35 ns|        28 ns|        **1.250**
+             128|        50 ns|        31 ns|        **1.613**
+             256|        90 ns|        33 ns|        **2.727**
+             512|       158 ns|        35 ns|        **4.514**
+            1024|       298 ns|        44 ns|        **6.773**
+             100|        46 ns|        29 ns|        **1.586**
+            1000|       291 ns|        44 ns|        **6.614**
+           10000|      2737 ns|       199 ns|        **13.754**
+          100000|     27547 ns|      1722 ns|        **15.997**
+         1000000|    279491 ns|     21477 ns|        **13.014**
+              59|        36 ns|        29 ns|        **1.241**
+              79|        39 ns|        31 ns|        **1.258**
+             173|        62 ns|        32 ns|        **1.938**
+            6133|      1685 ns|       133 ns|        **12.669**
+           10177|      2781 ns|       200 ns|        **13.905**
+           25253|      6866 ns|       456 ns|        **15.057**
+           31391|      8543 ns|       566 ns|        **15.094**
+           50432|     13890 ns|       886 ns|        **15.677**
+
+
+Looks like a nice speedup across the board except for the much smaller array sizes suffering some very slight overhead, more on that later. Let's augment even further with the *16* and *64* bit `bswap` to try and shear away more of our algorithm away from having to reach the slower `std::swap` loop.
+
+We can simply edit the `bswap` routine we already made and edit it to 16-bit and 64-bit types, size, and offsets. We also should make sure to place our smaller-sized chunk-swaps to the bottom of our chunk-swap-chain and largest at the top. That way our algorithm will move the large outer chunks first before it moves down to the smaller more individual ones and eventually work its way down to the edge-case naive swaps(which it may not even have to do for some array sizes). Also since these `bswap`s work their way down and pick up right where the previous one left off they can pick up the same `i` variable and very quickly process how many 4-byte or 2-byte chunk-swaps need to happen with some simple division. Since we're dealing with power-of-two chunk sizes, this division would typically reduce down to a simple bit-shift to the right(those of you that dont know, a division by a power of 2 is the same as a bit-shift to the right).
 
 ```cpp
 template<>
@@ -194,7 +222,7 @@ void qReverse<std::uint8_t>( std::uint8_t* Array, std::size_t Count )
 	}
 	for( std::size_t j = i/2 ; j < ( (Count/2) / 2 ) ; ++j)
 	{
-		// Get bswapped versions of our Upper and Lower 4-byte chunks
+		// Get bswapped versions of our Upper and Lower 2-byte chunks
 		std::uint16_t Lower = Swap16(
 			*reinterpret_cast<std::uint16_t*>( &Array[i] )
 		);
@@ -210,8 +238,7 @@ void qReverse<std::uint8_t>( std::uint8_t* Array, std::size_t Count )
 		i += 2;
 	}
 
-	// Everything else that we can not do a 4-byte bswap on, we swap normally
-	// Naive swaps
+	// Once we've depleted all of our chunk-swapping methods, we swap normally
 	for( ; i < Count/2 ; ++i)
 	{
 		// Exchange the upper and lower element as we work our
@@ -224,89 +251,71 @@ void qReverse<std::uint8_t>( std::uint8_t* Array, std::size_t Count )
 }
 ```
 
-So now we have our fully `bswap`-accelerated byte reversal function. The additional `Swap64` and `Swap16` don't actually speed up our 255-byte benchmark much(compile flags: `-m64 -O9 -march=skylake`):
+So now we have our fully `bswap`-accelerated byte reversal function to put to the test:
 
+   Element Count|std::reverse|  qReverse|Speedup Factor
+            --:|      ---|      ---|      --:|
+               8|        21 ns|        26 ns|          0.808
+              16|        23 ns|        24 ns|          0.958
+              32|        27 ns|        25 ns|        **1.080**
+              64|        35 ns|        27 ns|        **1.296**
+             128|        52 ns|        29 ns|        **1.793**
+             256|        90 ns|        32 ns|        **2.812**
+             512|       160 ns|        34 ns|        **4.706**
+            1024|       299 ns|        42 ns|        **7.119**
+             100|        48 ns|        30 ns|        **1.600**
+            1000|       292 ns|        45 ns|        **6.489**
+           10000|      2734 ns|       197 ns|        **13.878**
+          100000|     27582 ns|      1743 ns|        **15.824**
+         1000000|    279448 ns|     21412 ns|        **13.051**
+              59|        36 ns|        30 ns|        **1.200**
+              79|        39 ns|        33 ns|        **1.182**
+             173|        65 ns|        33 ns|        **1.970**
+            6133|      1678 ns|       132 ns|        **12.712**
+           10177|      2785 ns|       199 ns|        **13.995**
+           25253|      6860 ns|       454 ns|        **15.110**
+           31391|      8539 ns|       565 ns|        **15.113**
+           50432|     13889 ns|       882 ns|        **15.747**
 
-`std::reverse` - *88ns* 
-`qReverse` - *35ns* (shaved off *5ns*!)
+The additional 16 and 64 bit `bswap` functions just slightly increased all of our speedups! Across the board we got a very  steep speedup over `std::reverse` using only `bswap`! These neat power-of-two numbers would mostly call our `Swap64` almost entirely and may never even have to touch the `std::swap` loop at the bottom. When we use less-factorable numbers such as `10,000` or a prime number such as `10,177` then a different mix of `Swap64`, `Swap32` and `Swap16` get called as the algorithm approaches the center which may or may not call the `std::swap` routine after all!
 
-out speedup factor is still generally *~2.5* with a 255-byte benchmark but the gap gets much wider once we throw an even larger data set at it. Each benchmark is automated using *10,000,000* trials.
+If we feed our algorithm array sizes of around 16 or lower though we start to reach a bit of a performance loss. Each routine in our chain of chunk-swapping loops comes with some _conditional code tax_ before finally falling back to the `std::swap` method that `std::reverse` would have already been doing right from the get-go. So long as we feed our algorithm arrays greater than about 16 characters then we're benefiting from a potentially huge speedup as our array size increases.
 
-*1,024* bytes:
-`std::reverse` - *296ns*
-`qReverse` - *48ns*
-Speedup: *~6.166*
+Can we do a little better? What about those "middle" cases.
 
-*2,048* bytes: 
-`std::reverse` - *573ns* 
-`qReverse` - *66ns*
-Speedup: *~8.681*
+# The middle "chunk" (TODO)
 
-*4,096* bytes: 
-`std::reverse` - *1127ns* 
-`qReverse` - *102ns*
-Speedup: *~11.049*
+That final naive `std::swap` loop used for the middle-cases that our `bswap` doesn't handle is the bottle neck of our algorithm. We can get a bit of speedup by recognizing that once we work our way down to the middle we can potentially do just one more `Swap16`,`Swap32` or `Swap64` to flip the _middle-most-chunk_ and have a completely reversed array. Since our `bswap` instruction works only on power-of-two sized chunks of memory we can squeeze this extra inch of speed when our middle-case is that we have `8`,`4` or `2` bytes left.
 
-*8,192* bytes: 
-`std::reverse` - *2242ns* 
-`qReverse` - *177ns* 
-Speedup: *~12.666*
-
-Across the board we got a very very steep speedup using only `bswap`! These neat power-of-two numbers would mostly call our `Swap64` almost entirely. When we use less-factorable numbers such as `10,000` or a prime number such as `10,177` then a different mix of `Swap64`, `Swap32` and `Swap16` get called as the algorithm approaches the center.
-
-*10,000* bytes: 
-`std::reverse` - *2733ns* 
-`qReverse` - *202ns* 
-Speedup: *~13.529*
-
-*10,177* bytes: 
-`std::reverse` - *2780ns* 
-`qReverse` - *194ns* 
-Speedup: *~14.329*
-
-For small array sizes though, the additional overhead of our algorithm fails when working with smaller string sizes and ends up being slightly slower than the naive algorithm by about `%13`:
-
-*30* bytes: 
-`std::reverse` - *25ns* 
-`qReverse` - *39ns*
-Speedup: *~0.862*
-
-*32* bytes: 
-`std::reverse` - *26ns* 
-`qReverse` - *30ns* 
-Speedup: *~0.866*
-
-*47* bytes: 
-`std::reverse` - *30ns* 
-`qReverse` - *31ns* 
-Speedup: *~0.935*
-
-*48* bytes: 
-`std::reverse` - *30ns* 
-`qReverse` - *26ns* 
-Speedup: *~1.153*
-
-The sweet-spot where we seem to overcome this overhead is at 48 elements. So long as we feed our algorithm arrays greater than about 48 characters then we're benefiting from a speedup. Can we do a little better? 48 characters is a lot to ask for. What about those "middle" cases. That final naive `std::swap` loop used for the middle-cases that our bswap doesn't handle is the bottle neck of our algorithm. We can get a bit of speedup by recognizing that once we work our way down to the middle, then we can do just one more `Swap16`,`Swap32` or `Swap64` to mirror the middle "chunk" wherever possible. Since our `bswap` instruction works only on even-sized chunks of memory we can squeeze this extra inch of speed when our middle-case is an even amount of elements.
-
-Once we work our way down the middle and end up with `4` "middle" element. Then we are just one `Swap32` left from having the entire array swapped. What if we worked our way down to the middle and ended up with `5` elements though? This would not be possible actually so long as we have `Swap16`. `5` middle elements would mean we have `one middle element` with `two elements on either side`. Our `for( std::size_t j = i/2; j < ( (Count/2) / 2);...` would catch that and `Swap16` the two elements on either side, getting us just `1` element left right in the middle which can stay right where it is within a reversed array(since the middle-most element in an odd-numbered array is our *pivot*).
+Once we work our way down the middle and end up with something like  `4` "middle" elements left then we are just one `Swap32` left from having the entire array reversed. What if we worked our way down to the middle and ended up with `5` elements though? This would not be possible actually so long as we have `Swap16`. `5` middle elements would mean we have `one middle element` with `two elements on either side`. Our `for( std::size_t j = i/2; j < ( (Count/2) / 2)` would catch that and `Swap16` the two elements on either side, getting us just `1` element left right in the middle which can stay right where it is within a reversed array(since the middle-most element in an odd-numbered array is our *pivot* and doesn't have to move anywhere).
 
 TODO: Later we can find a way to accelerate our algorithm to have it consider these pivot-cases efficiently so that rather than calling two `Swap16`s on either half of 4-bytes, it could just call one last `Swap32` or even a bigger `Swap64` before it even parks itself in that situation. Something like this could remove the use of the naive `std::swap` pretty much entirely.
 
 ## SIMD
 
-The `bswap` instruction can reverse the byte-order of `2`, `4`, or `8` bytes, but several x86 extensions later and now it is possible to swap the byte order of `16`, `32`, even `64` bytes all at once through the use of `SIMD`. `SIMD` stands for *Single Instruction Multiple Data* and allows us to operate upon multiple lanes of data in parallel using only a single instruction. Much like our `bswap` which exchanges all four bytes in a register, `SIMD` provides and entire instructionset of arithmetic that allows us to manipulate multiple instances of data at once using a single instruction in parallel. These chunks of data that are operated upon tend to be called `vectors` of data. We will be streaming multiple bytes of data into a `vector` to reverse it's order and place it on the opposite end similiar to our `bswap` implementation.
+The `bswap` instruction can reverse the byte-order of `2`, `4`, or `8` bytes, but several x86 extensions later and now it is possible to swap the byte order of `16`, `32`, even `64` bytes all at once through the use of `SIMD`. `SIMD` stands for *Single Instruction Multiple Data* and allows us to operate upon multiple lanes of data in parallel using only a single instruction. Much like our `bswap` which atomically reverses all four bytes in a register, `SIMD` provides and entire instruction set of arithmetic that allows us to manipulate multiple instances of data at once using a single instruction in parallel. These chunks of data that are operated upon tend to be called `vectors` of data. We will be able to suspend multiple bytes of data into a `vector` to reverse its order and place it on the opposite end similarly to our `bswap` implementation.
 
-These additions to our algorithm will span higher chunks of bytes and will append above our chain of `bswap` accelerated swap-loops. Several x86 extensions.
+These additions to our algorithm will span higher-width chunks of bytes and will be append above our chain of `bswap` accelerated swap-loops. Over the years the x86 architecture has seen many generations of `SIMD` implementations, improvements, and instruciton sets:
 
-Over the years the x86 architecture has seen many generations of `SIMD` implementations. `MMX`, `SSE`, `SSE2`, `SSE3`, `SSSE3`, `SSE4 a/1/2`, `AVX`, `AVX2`, `AVX512`.
+- `MMX` (1996)
+- `SSE` (1999)
+- `SSE2` (2001)
+- `SSE3` (2004)
+- `SSSE3` (2006)
+- `SSE4 a/1/2` (2006)
+- `AVX` (2008)
+- `AVX2` (2013)
+- `AVX512` (2015)
 
-Some are kept around for compatibilities sake(`MMX`) and some are so recent, elusive, or vendor-specific that you're probably not likely to have a processor that features it(`SSE4a`). Some are very specific to enterprise hardware (such as `AVX512`) and are not likely to be on commercial hardware.
+Some are kept around for compatibilities sake(`MMX`) and some are so recent, elusive, or so _vendor-specific_ to Intel or AMD that you're probably not likely to have a processor that features it(`SSE4a`). Some are very specific to enterprise hardware (such as `AVX512`) and are not likely to be on commercial hardware either.
 
-At the moment (July 21, 2017) the steam hardware survey states that *94.42%* of all CPUs on steam feature `SSSE3`([store.steampowered.com/hwsurvey/](http://store.steampowered.com/hwsurvey/)). Which is what we will be using in our first step into `SIMD` territory. `SSSE3` in particular due to its `_mm_shuffle_epi8` instruction which lets us _shuffle_ bytes within our 128-bit register.
+At the moment (July 21, 2017) the steam hardware survey states that **94.42%** of all CPUs on Steam feature `SSSE3`([store.steampowered.com/hwsurvey/](http://store.steampowered.com/hwsurvey/)). Which is what we will be using in our first step into `SIMD` territory. `SSSE3` in particular due to its `_mm_shuffle_epi8` instruction which lets us _shuffle_ bytes within our 128-bit register with relative ease for our implementation.
 
 ## SSSE3
 
-SSE in general introduces to us registers that span `128` bits, or `16` bytes. In C or C++ code we represent the intent to use these registers using types such as `__m128i` or `__m128d` which tell the compiler that any notion of _storage_ for these types should find their place within the 128-bit SSE registers when ever possible. We have intrinsics such as `_mm_add_epi8` which will add two `__m128i`s together, and treat them as a _vector_ of 8-bit elements. The `i` and `d` found in `__m128i` and `__m128d` are to notify intent of the 128-register's type *i*nteger and *d*ouble. `__m128` has no notion of the type and is assumed to be a vector of four `floats`. Since we're just dealing with bytes we want to swap we care only for `__m128i` which gives us access to `_mm_shuffle_epi8`. Lets draft our code to get ready for some SSSE3 byte swapping. First thing's first, we need to `#include <tmmintrin.h>` in our C or C++ code to expose every intrinsic from `MMX` up until `SSSE3` to our code. Then use the instrinsic `_mm_loadu_si128` to *load* an *u*naligned *s*igned *i*nteger vector of *128* bits. At a hardware level, _unaligned_ data and _aligned_ data interfaces with the memory hardware differently. Since we are addressing data that is possibly very dynamic and unpredictable, we assume it is *u*naligned. Once we are done with our arithmetic, we call `_mm_storeu_si128` which stores our vector into a location in a similar fashion to `_mm_loadu_si128`:
+`SSE` stands for "Streaming SIMD Extensions" while `SSSE3` stands for "Supplemental Streaming SIMD Extensions 3" which is the _forth_ iteration of `SSE` technology. SSE introduces to us registers that allow for some `128` bit vector arithmetic. In C or C++ code we represent the intent to use these registers using types such as `__m128i` or `__m128d` which tell the compiler that any notion of _storage_ for these types should find their place within the 128-bit `SSE` registers when ever possible. We have intrinsics such as `_mm_add_epi8` which will add two `__m128i`s together, and treat them as a _vector_ of 8-bit elements. The `i` and `d` found in `__m128i` and `__m128d` are to notify intent of the 128-register's interpretation as `i`nteger and `d`ouble respectively. `__m128` has no notion of the type interpretation and is assumed to be a vector of four `floats` by default. Since we're just dealing with bytes we want to swap we care only for `__m128i` which gives us access to `_mm_shuffle_epi8`.
+
+Lets draft our code to get ready for some `SSSE3` byte swapping and create our own 16-bit `bswap` using `SSSE3`. First thing's first, we need to `#include <tmmintrin.h>` in our C or C++ code to expose every intrinsic from `MMX` up until `SSSE3` to our code. Then use the instrinsic `_mm_loadu_si128` to `load` an `u`naligned `s`igned `i`nteger vector of `128` bits into a `__m128i` variable. At a hardware level, _unaligned_ data and _aligned_ data interfaces with the memory hardware slightly differently. Guarantee that you will be accessing aligned data 100% of the time provides for some slight speedups though we are dealing with generally unpredictable data and can not make any assumptions about its alignment. Once we are done with our arithmetic, we call an equivalent `_mm_storeu_si128` which stores our vector data into a memory address.
 
 ```cpp
 #include <tmmintrin.h>
@@ -318,7 +327,7 @@ void qReverse<std::uint8_t>( std::uint8_t* Array, std::size_t Count )
 	std::size_t i = 0;
 	for( std::size_t j = i ; j < ( (Count/2) / 16 ) ; ++j)
 	{
-		// Load 16 elements at once into one 16-byte register
+		// Load 16 elements at once into one 16-byte integer register
 		__m128i Lower = _mm_loadu_si128(
 			reinterpret_cast<__m128i*>( &Array[i] )
 		);
@@ -347,64 +356,37 @@ void qReverse<std::uint8_t>( std::uint8_t* Array, std::size_t Count )
 		// Sixteen elements at a time
 		i += 16;
 	}
-	// Right above our Swap64 implementation
+	// Right above our Swap64 implementation...
 	for( std::size_t j = i ; j < ( (Count/2) / 8 ) ; ++j)
 ...
 ```
 
-This basically implements a beefed-up 16-byte `bswap` using SSSE3. The heart of it all is the `_mm_shuffle_epi8` instruction which _shuffles_ the vector in the first argument according to the vector of byte-indices found in the second argument and returns this new vector. A constant vector `ShuffleMap` is declared using `_mm_set_epi8` with each byte set to the index of where it should get its byte from(Starting from least significant byte, you might read it as going from 1 to 15 in ascending order but this is actually indexing the bytes in reverse order).
+This basically implements a beefed-up 16-byte `bswap` using `SSSE3`. The heart of it all is the `_mm_shuffle_epi8` instruction which _shuffles_ the vector in the first argument according to the vector of byte-indices found in the second argument and returns this new _shuffled_ vector. A constant vector `ShuffleMap` is declared using `_mm_set_epi8` with each byte set to the index of where it should get its byte from(Starting from least significant byte). You might read it as going from 0 to 15 in ascending order but this is actually indexing the bytes in reverse order which gives us a fully reversed 16-bit "chunk". Now for the punch-line.
 
-**And now the benchmarks:**
+   Element Count|std::reverse|  qReverse|Speedup Factor
+            --:|      ---|      ---|      --:|
+               8|        21 ns|        25 ns|          0.840
+              16|        22 ns|        25 ns|          0.880
+              32|        26 ns|        24 ns|        **1.083**
+              64|        36 ns|        24 ns|        **1.500**
+             128|        51 ns|        25 ns|        **2.040**
+             256|        89 ns|        29 ns|        **3.069**
+             512|       159 ns|        33 ns|        **4.818**
+            1024|       299 ns|        44 ns|        **6.795**
+             100|        44 ns|        27 ns|        **1.630**
+            1000|       291 ns|        44 ns|        **6.614**
+           10000|      2734 ns|       216 ns|        **12.657**
+          100000|     27537 ns|      2370 ns|        **11.619**
+         1000000|    279409 ns|     27095 ns|        **10.312**
+              59|        37 ns|        29 ns|        **1.276**
+              79|        41 ns|        31 ns|        **1.323**
+             173|        63 ns|        31 ns|        **2.032**
+            6133|      1680 ns|       156 ns|        **10.769**
+           10177|      2783 ns|       228 ns|        **12.206**
+           25253|      6866 ns|       550 ns|        **12.484**
+           31391|      8543 ns|       700 ns|        **12.204**
+           50432|     13890 ns|      1203 ns|        **11.546**
 
-*1,024* bytes: 
-`std::reverse` - 294ns 
-`qReverse` - *43ns* 
-Speedup: *~6.837*
-
-*2,048* bytes: 
-`std::reverse` - 573ns 
-`qReverse` - *62ns* 
-Speedup: *~9.241*
-
-*4,096* bytes: 
-`std::reverse` - 1127ns 
-`qReverse` - *103ns* 
-Speedup: *~10.941*
-
-*8,192* bytes: 
-`std::reverse` - 2245ns 
-`qReverse` - *181ns* 
-Speedup: *~12.403*
-
-*10,000* bytes: 
-`std::reverse` - 2733ns 
-`qReverse` - *217ns* 
-Speedup: *~12.594*
-
-*10,177* bytes: 
-`std::reverse` - 2782ns 
-`qReverse` - *228ns* 
-Speedup: *~12.201*
-
-*30* bytes: 
-`std::reverse` - *25ns* 
-`qReverse` - 31ns 
-Speedup: *~0.806*
-
-*32* bytes: 
-`std::reverse` - 26ns 
-`qReverse` - *24ns* 
-Speedup: *~1.083*
-
-*47* bytes: 
-`std::reverse` - *29ns* 
-`qReverse` - 30ns 
-Speedup: *~0.966*
-
-*48* bytes: 
-`std::reverse` - 30ns 
-`qReverse` - *27ns* 
-Speedup: *~1.111*
 
 So it looks like by reversing chunks of 16-byte elements using SSSE3 we barely got any speed up. In fact some of our larger arrays being reversed have turned with lower speedups than without it. Though our small-array-size scores have skewed a bit for the better in which the cost of overhead and the boost in using 16-byte chunks gave us a very slight benefit over `std::reverse` (As a side note I should mention that if we removed everything _except_ our SSSE3 and the naive swap we save ourselves some of the overhead of the other swapping methods and proportionally get some very sub-fractionaly small speedups for the larger data sets ).
 
