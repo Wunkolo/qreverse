@@ -157,27 +157,27 @@ And now some benchmarks: on my _i3-6100_. I automated the benchmark process acro
 
 Element Count|std::reverse|qReverse|Speedup Factor
 ---|---|---|---
-               8|        21 ns|        23 ns|          0.913
-              16|        22 ns|        23 ns|          0.957
-              32|        26 ns|        25 ns|        **1.040**
-              64|        35 ns|        28 ns|        **1.250**
-             128|        50 ns|        31 ns|        **1.613**
-             256|        90 ns|        33 ns|        **2.727**
-             512|       158 ns|        35 ns|        **4.514**
-            1024|       298 ns|        44 ns|        **6.773**
-             100|        46 ns|        29 ns|        **1.586**
-            1000|       291 ns|        44 ns|        **6.614**
-           10000|      2737 ns|       199 ns|        **13.754**
-          100000|     27547 ns|      1722 ns|        **15.997**
-         1000000|    279491 ns|     21477 ns|        **13.014**
-              59|        36 ns|        29 ns|        **1.241**
-              79|        39 ns|        31 ns|        **1.258**
-             173|        62 ns|        32 ns|        **1.938**
-            6133|      1685 ns|       133 ns|        **12.669**
-           10177|      2781 ns|       200 ns|        **13.905**
-           25253|      6866 ns|       456 ns|        **15.057**
-           31391|      8543 ns|       566 ns|        **15.094**
-           50432|     13890 ns|       886 ns|        **15.677**
+8|21 ns|23 ns|0.913
+16|22 ns|23 ns|0.957
+32|26 ns|25 ns|**1.040**
+64|35 ns|28 ns|**1.250**
+128|50 ns|31 ns|**1.613**
+256|90 ns|33 ns|**2.727**
+512|158 ns|35 ns|**4.514**
+1024|298 ns|44 ns|**6.773**
+100|46 ns|29 ns|**1.586**
+1000|291 ns|44 ns|**6.614**
+10000|2737 ns|199 ns|**13.754**
+100000|27547 ns|1722 ns|**15.997**
+1000000|279491 ns|21477 ns|**13.014**
+59|36 ns|29 ns|**1.241**
+79|39 ns|31 ns|**1.258**
+173|62 ns|32 ns|**1.938**
+6133|1685 ns|133 ns|**12.669**
+10177|2781 ns|200 ns|**13.905**
+25253|6866 ns|456 ns|**15.057**
+31391|8543 ns|566 ns|**15.094**
+50432|13890 ns|886 ns|**15.677**
 
 
 Looks like a nice speedup across the board except for the much smaller array sizes suffering some very slight overhead, more on that later. Let's augment even further with the *16* and *64* bit `bswap` to try and shear away more of our algorithm away from having to reach the slower `std::swap` loop.
@@ -255,27 +255,27 @@ So now we have our fully `bswap`-accelerated byte reversal function to put to th
 
 Element Count|std::reverse|qReverse|Speedup Factor
 ---|---|---|---
-               8|        21 ns|        26 ns|          0.808
-              16|        23 ns|        24 ns|          0.958
-              32|        27 ns|        25 ns|        **1.080**
-              64|        35 ns|        27 ns|        **1.296**
-             128|        52 ns|        29 ns|        **1.793**
-             256|        90 ns|        32 ns|        **2.812**
-             512|       160 ns|        34 ns|        **4.706**
-            1024|       299 ns|        42 ns|        **7.119**
-             100|        48 ns|        30 ns|        **1.600**
-            1000|       292 ns|        45 ns|        **6.489**
-           10000|      2734 ns|       197 ns|        **13.878**
-          100000|     27582 ns|      1743 ns|        **15.824**
-         1000000|    279448 ns|     21412 ns|        **13.051**
-              59|        36 ns|        30 ns|        **1.200**
-              79|        39 ns|        33 ns|        **1.182**
-             173|        65 ns|        33 ns|        **1.970**
-            6133|      1678 ns|       132 ns|        **12.712**
-           10177|      2785 ns|       199 ns|        **13.995**
-           25253|      6860 ns|       454 ns|        **15.110**
-           31391|      8539 ns|       565 ns|        **15.113**
-           50432|     13889 ns|       882 ns|        **15.747**
+8|21 ns|26 ns|0.808
+16|23 ns|24 ns|0.958
+32|27 ns|25 ns|**1.080**
+64|35 ns|27 ns|**1.296**
+128|52 ns|29 ns|**1.793**
+256|90 ns|32 ns|**2.812**
+512|160 ns|34 ns|**4.706**
+1024|299 ns|42 ns|**7.119**
+100|48 ns|30 ns|**1.600**
+1000|292 ns|45 ns|**6.489**
+10000|2734 ns|197 ns|**13.878**
+100000|27582 ns|1743 ns|**15.824**
+1000000|279448 ns|21412 ns|**13.051**
+59|36 ns|30 ns|**1.200**
+79|39 ns|33 ns|**1.182**
+173|65 ns|33 ns|**1.970**
+6133|1678 ns|132 ns|**12.712**
+10177|2785 ns|199 ns|**13.995**
+25253|6860 ns|454 ns|**15.110**
+31391|8539 ns|565 ns|**15.113**
+50432|13889 ns|882 ns|**15.747**
 
 The additional 16 and 64 bit `bswap` functions just slightly increased all of our speedups! Across the board we got a very  steep speedup over `std::reverse` using only `bswap`! These neat power-of-two numbers would mostly call our `Swap64` almost entirely and may never even have to touch the `std::swap` loop at the bottom. When we use less-factorable numbers such as `10,000` or a prime number such as `10,177` then a different mix of `Swap64`, `Swap32` and `Swap16` get called as the algorithm approaches the center which may or may not call the `std::swap` routine after all!
 
@@ -365,30 +365,29 @@ This basically implements a beefed-up 16-byte `bswap` using `SSSE3`. The heart o
 
 Element Count|std::reverse|qReverse|Speedup Factor
 ---|---|---|---
-               8|        21 ns|        25 ns|          0.840
-              16|        24 ns|        25 ns|          0.960
-              32|        26 ns|        24 ns|        **1.083**
-              64|        36 ns|        24 ns|        **1.500**
-             128|        51 ns|        26 ns|        **1.962**
-             256|        91 ns|        28 ns|        **3.250**
-             512|       155 ns|        33 ns|        **4.697**
-            1024|       299 ns|        44 ns|        **6.795**
-             100|        44 ns|        27 ns|        **1.630**
-            1000|       293 ns|        44 ns|        **6.659**
-           10000|      2735 ns|       216 ns|        **12.662**
-          100000|     27609 ns|      2371 ns|        **11.644**
-         1000000|    279465 ns|     27159 ns|        **10.290**
-              59|        37 ns|        30 ns|        **1.233**
-              79|        40 ns|        31 ns|        **1.290**
-             173|        66 ns|        30 ns|        **2.200**
-            6133|      1679 ns|       154 ns|        **10.903**
-           10177|      2785 ns|       228 ns|        **12.215**
-           25253|      6861 ns|       545 ns|        **12.589**
-           31391|      8540 ns|       698 ns|        **12.235**
-           50432|     13890 ns|      1201 ns|        **11.565**
+8|28 ns|33 ns|0.848
+16|30 ns|33 ns|0.909
+32|36 ns|32 ns|**1.125**
+64|47 ns|33 ns|**1.424**
+128|67 ns|34 ns|**1.971**
+256|120 ns|37 ns|**3.243**
+512|195 ns|38 ns|**5.132**
+1024|341 ns|45 ns|**7.578**
+100|45 ns|28 ns|**1.607**
+1000|300 ns|45 ns|**6.667**
+10000|2738 ns|217 ns|**12.618**
+100000|27541 ns|2372 ns|**11.611**
+1000000|279477 ns|27143 ns|**10.296**
+59|36 ns|29 ns|**1.241**
+79|40 ns|31 ns|**1.290**
+173|62 ns|31 ns|**2.000**
+6133|1680 ns|155 ns|**10.839**
+10177|2784 ns|231 ns|**12.052**
+25253|6862 ns|547 ns|**12.545**
+31391|8546 ns|719 ns|**11.886**
+50432|13889 ns|1203 ns|**11.545**
 
-
-So it looks like by reversing chunks of 16-byte elements using SSSE3 we barely got any speed up. In fact some of our larger arrays being reversed have turned with lower speedups than without it. Though our small-array-size scores have skewed a bit for the better in which the cost of overhead and the boost in using 16-byte chunks gave us a very slight benefit over `std::reverse` (As a side note I should mention that if we removed everything _except_ our SSSE3 and the naive swap we save ourselves some of the overhead of the other swapping methods and proportionally get some very sub-fractionaly small speedups for the larger data sets ).
+So it looks like by reversing chunks of 16-byte elements using SSSE3 we barely got any speed up. In fact some of our larger arrays being reversed have turned with lower speedups than without it. Though our small-array-size scores have skewed a bit for the better in which the cost of overhead and the boost in using 16-byte chunks gave us a very slight benefit over `std::reverse` (As a side note I should mention that if we removed everything _except_ our SSSE3 and the naive swap we save ourselves some of the overhead of the other swapping methods and proportionally get some very sub-fractional speedups for the larger data sets ).
 
 ## AVX/AVX2
 
