@@ -155,8 +155,8 @@ void qReverse<std::uint8_t>( std::uint8_t* Array, std::size_t Count )
 
 And now some benchmarks: on my _i3-6100_. I automated the benchmark process across several different array-sizes giving each array-size `10,000` array-reversal trials before getting an average execution time for for that specific array width. Using g++ compile flags: `-m64 -Ofast -march=skylake`.
 
-   Element Count|std::reverse|  qReverse|Speedup Factor
-            ---|      ---|      ---|      ---|
+Element Count|std::reverse|qReverse|Speedup Factor
+---|---|---|---
                8|        21 ns|        23 ns|          0.913
               16|        22 ns|        23 ns|          0.957
               32|        26 ns|        25 ns|        **1.040**
@@ -253,8 +253,8 @@ void qReverse<std::uint8_t>( std::uint8_t* Array, std::size_t Count )
 
 So now we have our fully `bswap`-accelerated byte reversal function to put to the test:
 
-   Element Count|std::reverse|  qReverse|Speedup Factor
-            ---|      ---|      ---|      ---|
+Element Count|std::reverse|qReverse|Speedup Factor
+---|---|---|---
                8|        21 ns|        26 ns|          0.808
               16|        23 ns|        24 ns|          0.958
               32|        27 ns|        25 ns|        **1.080**
@@ -363,30 +363,29 @@ void qReverse<std::uint8_t>( std::uint8_t* Array, std::size_t Count )
 
 This basically implements a beefed-up 16-byte `bswap` using `SSSE3`. The heart of it all is the `_mm_shuffle_epi8` instruction which _shuffles_ the vector in the first argument according to the vector of byte-indices found in the second argument and returns this new _shuffled_ vector. A constant vector `ShuffleMap` is declared using `_mm_set_epi8` with each byte set to the index of where it should get its byte from(Starting from least significant byte). You might read it as going from 0 to 15 in ascending order but this is actually indexing the bytes in reverse order which gives us a fully reversed 16-bit "chunk". Now for the punch-line.
 
-   Element Count|std::reverse|  qReverse|Speedup Factor
-            ---|      ---|      ---|      ---|
-               8|        21 ns|        24 ns|          0.875
-              16|        23 ns|        25 ns|          0.920
-              32|        27 ns|        24 ns|        **1.125**
-              64|        37 ns|        25 ns|        **1.480**
-             128|        50 ns|        26 ns|        **1.923**
-             256|        90 ns|        29 ns|        **3.103**
-             512|       159 ns|        33 ns|        **4.818**
-            1024|       298 ns|        43 ns|        **6.930**
+Element Count|std::reverse|qReverse|Speedup Factor
+---|---|---|---
+               8|        21 ns|        25 ns|          0.840
+              16|        24 ns|        25 ns|          0.960
+              32|        26 ns|        24 ns|        **1.083**
+              64|        36 ns|        24 ns|        **1.500**
+             128|        51 ns|        26 ns|        **1.962**
+             256|        91 ns|        28 ns|        **3.250**
+             512|       155 ns|        33 ns|        **4.697**
+            1024|       299 ns|        44 ns|        **6.795**
              100|        44 ns|        27 ns|        **1.630**
-            1000|       291 ns|        44 ns|        **6.614**
-           10000|      2734 ns|       216 ns|        **12.657**
-          100000|     27540 ns|      2367 ns|        **11.635**
-         1000000|    279443 ns|     27125 ns|        **10.302**
-              59|        36 ns|        29 ns|        **1.241**
-              79|        40 ns|        30 ns|        **1.333**
-             173|        62 ns|        31 ns|        **2.000**
-            6133|      1679 ns|       159 ns|        **10.560**
-           10177|      2783 ns|       229 ns|        **12.153**
-           25253|      6860 ns|       545 ns|        **12.587**
-           31391|      8545 ns|       715 ns|        **11.951**
-           50432|     13891 ns|      1205 ns|        **11.528**
-
+            1000|       293 ns|        44 ns|        **6.659**
+           10000|      2735 ns|       216 ns|        **12.662**
+          100000|     27609 ns|      2371 ns|        **11.644**
+         1000000|    279465 ns|     27159 ns|        **10.290**
+              59|        37 ns|        30 ns|        **1.233**
+              79|        40 ns|        31 ns|        **1.290**
+             173|        66 ns|        30 ns|        **2.200**
+            6133|      1679 ns|       154 ns|        **10.903**
+           10177|      2785 ns|       228 ns|        **12.215**
+           25253|      6861 ns|       545 ns|        **12.589**
+           31391|      8540 ns|       698 ns|        **12.235**
+           50432|     13890 ns|      1201 ns|        **11.565**
 
 
 So it looks like by reversing chunks of 16-byte elements using SSSE3 we barely got any speed up. In fact some of our larger arrays being reversed have turned with lower speedups than without it. Though our small-array-size scores have skewed a bit for the better in which the cost of overhead and the boost in using 16-byte chunks gave us a very slight benefit over `std::reverse` (As a side note I should mention that if we removed everything _except_ our SSSE3 and the naive swap we save ourselves some of the overhead of the other swapping methods and proportionally get some very sub-fractionaly small speedups for the larger data sets ).
