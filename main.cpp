@@ -14,6 +14,7 @@
 #include "qreverse.hpp"
 
 #include <chrono>
+#include <tuple>
 
 using ElementType = std::uint8_t;
 constexpr std::size_t ElementCount = 255;
@@ -45,7 +46,7 @@ int main()
 	);
 	
 #ifndef VERBOSE
-	Benchmark(Numbers);
+	Benchmark();
 #endif
 
 	std::cin.ignore();
@@ -53,40 +54,44 @@ int main()
 	return EXIT_SUCCESS;
 }
 
-template<typename TimeT = std::chrono::nanoseconds>
+template<typename TimeRes = std::chrono::nanoseconds>
 struct Measure
 {
-	template<typename F, typename ...Args>
-	static typename TimeT::rep Execute(F&& func, Args&&... args)
+	template<typename FuncType, typename ...ArgTypes>
+	static typename TimeRes::rep Execute(FuncType&& Func, ArgTypes&&... Arguments)
 	{
-		auto start = std::chrono::high_resolution_clock::now();
-		std::forward<decltype(func)>(func)(std::forward<Args>(args)...);
-		auto duration = std::chrono::duration_cast< TimeT>(
-			std::chrono::high_resolution_clock::now() - start
-			);
-		return duration.count();
+		auto Start = std::chrono::high_resolution_clock::now();
+		std::forward<decltype(Func)>(Func)(std::forward<ArgTypes>(Arguments)...);
+		auto Duration = std::chrono::duration_cast<TimeRes>(
+			std::chrono::high_resolution_clock::now() - Start
+		);
+		return Duration.count();
 	}
 
-	template<typename F, typename ...Args>
-	static auto Duration(F&& func, Args&&... args)
+	template<typename FuncType, typename ...ArgTypes>
+	static auto Duration(FuncType&& Func, ArgTypes&&... Arguments)
 	{
-		auto start = std::chrono::high_resolution_clock::now();
-		std::forward<decltype(func)>(func)(std::forward<Args>(args)...);
-		return std::chrono::duration_cast<TimeT>(
-			std::chrono::high_resolution_clock::now() - start
-			);
+		auto Start = std::chrono::high_resolution_clock::now();
+		std::forward<decltype(Func)>(Func)(std::forward<ArgTypes>(Arguments)...);
+		return std::chrono::duration_cast<TimeRes>(
+			std::chrono::high_resolution_clock::now() - Start
+		);
 	}
 };
 
-void Benchmark(std::array<ElementType, ElementCount>& Array)
+template< typename ElementType, std::size_t Count >
+void Bench()
 {
-	/// Benchmark
+	std::size_t SpeedStd = 0;
+	std::size_t SpeedQrev = 0;
+
+	std::vector<ElementType> Array(Count);
+
 #define COUNT 10000
 
 	std::chrono::nanoseconds Duration;
 
 	/// std::reverse
-	std::cout << "-----------std::reverse" << std::endl;
 	Duration = std::chrono::nanoseconds::zero();
 	for( std::size_t i = 0; i < COUNT; i++ )
 	{
@@ -97,11 +102,10 @@ void Benchmark(std::array<ElementType, ElementCount>& Array)
 		);
 	}
 	Duration /= COUNT;
-
-	std::cout << "\tAvg: " << Duration.count() << "ns" << std::endl;
+	
+	SpeedStd = Duration.count();
 
 	/// qreverse
-	std::cout << "-----------qreverse" << std::endl;
 	Duration = std::chrono::nanoseconds::zero();
 	for( std::size_t i = 0; i < COUNT; i++ )
 	{
@@ -113,7 +117,43 @@ void Benchmark(std::array<ElementType, ElementCount>& Array)
 	}
 	Duration /= COUNT;
 
-	std::cout << "\tAvg: " << Duration.count() << "ns" << std::endl;
+	SpeedQrev = Duration.count();
+
+	std::cout << Count << '|' << SpeedStd << '|' << SpeedQrev << '|' << SpeedQrev/static_cast<std::double_t>(SpeedStd);
+
+	return;
+}
+
+void Benchmark()
+{
+	/// Benchmark
+
+	// Powers of two
+	Bench<std::uint8_t,8>();
+	Bench<std::uint8_t,16>();
+	Bench<std::uint8_t,32>();
+	Bench<std::uint8_t,64>();
+	Bench<std::uint8_t,128>();
+	Bench<std::uint8_t,256>();
+	Bench<std::uint8_t,512>();
+	Bench<std::uint8_t,1024>();
+
+	// Powers of ten
+	Bench<std::uint8_t,100>();
+	Bench<std::uint8_t,1'000>();
+	Bench<std::uint8_t,10'000>();
+	Bench<std::uint8_t,100'000>();
+	Bench<std::uint8_t,1'000'000>();
+
+	// Primes
+	Bench<std::uint8_t,59>();
+	Bench<std::uint8_t,79>();
+	Bench<std::uint8_t,173>();
+	Bench<std::uint8_t,6'133>();
+	Bench<std::uint8_t,10'177>();
+	Bench<std::uint8_t,25'253>();
+	Bench<std::uint8_t,31'391>();
+	Bench<std::uint8_t,50'432>();
 }
 
 void PrintArray(const std::array<ElementType, ElementCount>& Array)
