@@ -1,5 +1,6 @@
 #pragma once
-
+#include <cstdint>
+#include <cstddef>
 #include <immintrin.h>
 
 #if defined(_MSC_VER)
@@ -49,7 +50,7 @@ inline std::uint64_t Swap64(std::uint64_t x)
 		((x & 0x0000FF0000000000) >> 24) |
 		((x & 0x00FF000000000000) >> 40) |
 		((x & 0xFF00000000000000) >> 56)
-		);
+	);
 }
 
 inline std::uint32_t Swap32(std::uint32_t x)
@@ -59,7 +60,7 @@ inline std::uint32_t Swap32(std::uint32_t x)
 		((x & 0x0000FF00) << 8) |
 		((x & 0x00FF0000) >> 8) |
 		((x & 0xFF000000) >> 24)
-		);
+	);
 }
 
 inline std::uint16_t Swap16(std::uint16_t x)
@@ -67,7 +68,7 @@ inline std::uint16_t Swap16(std::uint16_t x)
 	return (
 		((x & 0x00FF) << 8) |
 		((x & 0xFF00) >> 8)
-		);
+	);
 }
 
 #endif
@@ -100,7 +101,36 @@ inline void qReverse<1>(void* Array, std::size_t Count)
 {
 	std::uint8_t* Array8 = reinterpret_cast<std::uint8_t*>(Array);
 	std::size_t i = 0;
-	// AVX2
+	// AVX-512
+#if defined(__AVX512BW__) && defined(__AVX512F__) && defined(__AVX512CD__) && defined(__AVX512VL__) && defined(__AVX512DQ__)
+	for( std::size_t j = i; j < ((Count / 2) / 64); ++j )
+	{
+		// Load 64 elements at once into one 64-byte register
+		__m512i Lower = _mm512_loadu_si512(
+			reinterpret_cast<__m512i*>(&Array8[i])
+		);
+		__m512i Upper = _mm512_loadu_si512(
+			reinterpret_cast<__m512i*>(&Array8[Count - i - 64])
+		);
+
+		// Reverse the byte order of our 64-byte vectors
+
+		// Place them at their swapped position
+		_mm512_storeu_si512(
+			reinterpret_cast<__m512i*>(&Array8[i]),
+			Upper
+		);
+		_mm512_storeu_si512(
+			reinterpret_cast<__m512i*>(&Array8[Count - i - 64]),
+			Lower
+		);
+
+		// 64 elements at a time
+		i += 64;
+	}
+#endif
+	// AVX-2
+#if defined(__AVX2__)
 	for( std::size_t j = i; j < ((Count / 2) / 32); ++j )
 	{
 		const __m256i ShuffleRev = _mm256_set_epi8(
@@ -135,7 +165,9 @@ inline void qReverse<1>(void* Array, std::size_t Count)
 		// 32 elements at a time
 		i += 32;
 	}
+#endif
 	// SSSE3
+#if defined(__SSSE3__)
 	for( std::size_t j = i; j < ((Count / 2) / 16); ++j )
 	{
 		// Load 16 elements at once into one 16-byte register
@@ -167,6 +199,7 @@ inline void qReverse<1>(void* Array, std::size_t Count)
 		// 16 elements at a time
 		i += 16;
 	}
+#endif
 	// BSWAP 64
 	for( std::size_t j = i; j < ((Count / 2) / 8); ++j )
 	{
