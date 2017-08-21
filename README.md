@@ -1,6 +1,8 @@
-# qreverse
+# qReverse [![GitHub license](https://img.shields.io/badge/license-MIT-blue.svg)](https://raw.githubusercontent.com/Wunkolo/qreverse/master/LICENSE)
 
-qreverse is a quick array reversal algorithm designed as a "study" in designing a fast algorithm to reverse ascii strings in an architecture-aware way.
+### qReverse is an architecture-accelerated array reversal algorithm intended as a personal study to design a fast AoS reversal algorithm utilizing SIMD.
+
+---
 
 Standard array reversal algorithms that you typically see involves swapping either end of the array working your way down to the middle. Note the following approach treats the array elements as "objects" and will call overloaded class operators such as `operator=` or a `copy by reference` function during the creation of the intermediate swap buffer upon each swap to make the exchange. Some implementations would internally use an intermediate temporary variable to make the exchange which would require a minimum of two calls to your object's `operator=` and at least one call to your object's `copy by reference` constructor. `std::swap` also allows a custom overload `swap` function to be used in place of the generic one and this overload will be called if defined within the same namespace as your class allowing for some speedups.
 
