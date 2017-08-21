@@ -1,25 +1,64 @@
 cmake_minimum_required( VERSION 3.2.2 )
-project( SimdRev )
+project( qreversetest )
 
-set( CMAKE_CXX_STANDARD 14 )
+set( CMAKE_CXX_STANDARD 17 )
 set( CMAKE_COLOR_MAKEFILE ON )
 set( CMAKE_VERBOSE_MAKEFILE ON )
 
-add_executable(
-	qreversetest
-	main.cpp
+include_directories(include)
+### Optimizations
+if (MSVC)
+	add_compile_options( /Oxs )
+	add_compile_options( /arch:AVX2 )
+	add_compile_options( /MT )
+	add_compile_options( /Wall )
+elseif (CMAKE_COMPILER_IS_GNUCXX)
+	add_compile_options( -m64 )
+	add_compile_options( -march=native )
+	add_compile_options( -Ofast )
+	add_compile_options( -Wall )
+	add_compile_options( -Wextra )
+endif()
+
+### Tests
+enable_testing()
+
+set(
+	ElementSizes
+	1 2 4 8 16
 )
 
-#set( CMAKE_BUILD_TYPE Debug )
+set(
+	ElementCounts
+	2 5 10 17 32 100
+)
 
-if ("${CMAKE_CXX_COMPILER_ID}" STREQUAL "GNU")
-	add_definitions( -m64 )
-	add_definitions( -march=skylake )
-	add_definitions( -Ofast )
-	add_definitions( -Wall )
-	add_definitions( -Wextra )
-elseif ("${CMAKE_CXX_COMPILER_ID}" STREQUAL "MSVC")
-	add_definitions( /arch:AVX2 )
-	add_definitions( /O2 )
-	add_definitions( /MD )
-endif()
+# Create tests for each element size
+foreach( ElementSize ${ElementSizes})
+	add_executable(
+		"Verify${ElementSize}"
+		tests/verify.cpp
+	)
+	target_compile_definitions(
+		"Verify${ElementSize}"
+		PRIVATE
+		ELEMENTSIZE=${ElementSize}
+	)
+	# Add tests for each element size
+	foreach( ElementCount ${ElementCounts})
+		add_test(
+			NAME "Verify${ElementSize}-${ElementCount}"
+			COMMAND "Verify${ElementSize}" ${ElementCount}
+		)
+	endforeach( ElementCount )
+endforeach( ElementSize )
+
+
+add_executable(
+	Benchmark
+	tests/benchmark.cpp
+)
+add_test(
+	NAME Benchmark
+	COMMAND Benchmark
+)

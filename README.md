@@ -4,24 +4,24 @@ qreverse is a quick array reversal algorithm designed as a "study" in designing 
 
 Standard array reversal algorithms that you typically see involves swapping either end of the array working your way down to the middle. Note the following approach treats the array elements as "objects" and will call overloaded class operators such as `operator=` or a `copy by reference` function during the creation of the intermediate swap buffer upon each swap to make the exchange. Some implementations would internally use an intermediate temporary variable to make the exchange which would require a minimum of two calls to your object's `operator=` and at least one call to your object's `copy by reference` constructor. `std::swap` also allows a custom overload `swap` function to be used in place of the generic one and this overload will be called if defined within the same namespace as your class allowing for some speedups.
 
-```cpp
-    #include <algorithm>
-    #include <cstddef>
+```c++
+#include <algorithm>
+#include <cstddef>
 
-    template< typename ElementType >
-    void Reverse( ElementType* Array, std::size_t Count )
-    {
-    	// We're only iterating through half of the size of the array
-    	for( std::size_t i = 0; i < Count/2 ; ++i)
-    	{
-    		// Exchange the upper and lower element as we work our
-    		// way down to the middle from either end
-    		std::swap(
-    			Array[i],             // "lower" element
-    			Array[Count - i - 1]  // "upper" element
-    		);
-    	}
-    }
+template< typename ElementType >
+void Reverse( ElementType* Array, std::size_t Count )
+{
+	// We're only iterating through half of the size of the array
+	for( std::size_t i = 0; i < Count/2 ; ++i)
+	{
+		// Exchange the upper and lower element as we work our
+		// way down to the middle from either end
+		std::swap(
+			Array[i],             // "lower" element
+			Array[Count - i - 1]  // "upper" element
+		);
+	}
+}
 ```
 
 In some situations the data that you are dealing with does not implement any overloads for `operator=` or `copy by reference` and can simply be interpreted as the raw bytes that make up the objects at run-time. Data such as the `char`s found in a string or an _Array Of Structures_ that implement no additional memory-movement logic. Most usages of `struct` are intended to be treated as "bags of data" and do not have the limitation of additional memory-movement logic for copying or swapping. They simply represent a structure of interpretation for byte-data.
@@ -43,9 +43,9 @@ Without this limitation it is possible to accelerate the swapping of two element
 |||   0x000014b6 8806           mov byte [rsi], al    ; ends.
 |||   0x000014b8 4883c701       add rdi, 1            ; Shift our index at
 |||   0x000014bc 4883ee01       sub rsi, 1            ; both ends "inward"
-|||   0x000014c0 4839f7         cmp rdi, rsi          ; We can do better!
+|||   0x000014c0 4839f7         cmp rdi, rsi
 `===< 0x000014c3 72e9           jb 0x14ae
- ``-> 0x000014c5 f3c3           ret
+ ``-> 0x000014c5 f3c3           ret                   ; We can do better!
 ```
 
 
@@ -64,7 +64,7 @@ The `bswap` instruction reverses the individual bytes of a register and is typic
 - `_builtin_bswap32`
 - `_builtin_bswap16`
 
-The x86 header `immintrin.h` also includes `_bswap` and `_bswap64`. Otherwise a more generic implementation can be used.
+The x86 header `immintrin.h` also includes `_bswap` and `_bswap64`. Otherwise a more generic and portable implementation can be used.
 
 ```cpp
 inline std::uint64_t Swap64(std::uint64_t x)
@@ -103,11 +103,11 @@ inline std::uint16_t Swap16(std::uint16_t x)
 
 Most compilers are able to detect when an in-register endian-swap is being done and will emit `bswap` automatically or a similar intrinsic for your target architecture(The ARM architecture has the `REV` instruction for **armv6** or newer). Note also that `bswap16` is basically just a 16-bit rotate of 1 byte aka a `ror` instruction.
 
-**Now** we can specialize our accelerated implementation for 1-byte elements that have no swap-related overloads. Given the size of our array we can determine exactly how many times we using our new 4-byte swap trick.
+**Now** we can specialize our accelerated implementation for 1-byte elements that have no swap-related overloads with our new algorithm that can swap 4-bytes at a time! Given the size of our array we can determine exactly how many times we will be using new 4-byte swap trick.
 
 Using 32-bit `bswap`s, we can swap 4 elements from either end at a time. So we get the half-size count that we used during a naive swap(when we cut our array in half and start swapping either end), and adjust our algorithm to the fact that we can now do 4 elements at once.
 
-Given an array of `11` bytes that we want to reverse. We divide by two to get the number of element-swaps we would have to do(integer arithmetic): `11/2 = 5` So we need `5` single-element swaps that we would have to do at either end. Since we have a way to do `4` elements at once too, we can integer-divide this result `5` by `4` to know how many _4-element-bswaps_ we we need to do(`5/4 = 1`). So we need only one `bswap`-swap and one `naive`-swap.
+Given an array of `11` bytes that we want to reverse. We divide by two to get the number of _single-element_ swaps we would have to do(using integer arithmetic): `11/2 = 5`. So we need `5` single-element swaps that we would have to do at either end of our split array. Since we have a way to do `4` elements at once too, we can integer-divide this result `5` again by `4` to know how many _four-element_ swaps we we need to do(`5/4 = 1`). So we need only one `bswap`-swap and one `naive`-swap to fully reverse an 11-element array..
 
 ```cpp
 // Reverse an array of 1-byte elements(such as std::uint8_t)
@@ -336,7 +336,7 @@ void qReverse<std::uint8_t>( std::uint8_t* Array, std::size_t Count )
 		);
 		// Our constant shuffle-vector
 		// This vector tells _mm_shuffle_epi8 where each
-		// byte-location should get its new byte from
+		// byte should get its new byte from
 		const __m128i ShuffleMap = _mm_set_epi8(
 			0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15
 		);
