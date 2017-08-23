@@ -1,6 +1,7 @@
 #pragma once
 #include <cstdint>
 #include <cstddef>
+#include <algorithm>
 #include <immintrin.h>
 
 #if defined(_MSC_VER)
