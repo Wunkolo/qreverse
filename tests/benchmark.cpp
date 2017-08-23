@@ -35,7 +35,7 @@ struct Measure
 	}
 
 	template<typename F, typename ...Args>
-	static auto Duration(F&& func, Args&&... args)
+	static TimeT Duration(F&& func, Args&&... args)
 	{
 		auto start = std::chrono::high_resolution_clock::now();
 		std::forward<decltype(func)>(func)(std::forward<Args>(args)...);
@@ -53,7 +53,7 @@ void Bench()
 
 	std::vector<ElementType> Array(Count);
 
-#define COUNT 10'000
+#define COUNT 10000
 
 	std::chrono::nanoseconds Duration;
 
@@ -130,20 +130,20 @@ int main()
 
 	// Powers of ten
 	Bench<std::uint8_t, 100>();
-	Bench<std::uint8_t, 1'000>();
-	Bench<std::uint8_t, 10'000>();
-	Bench<std::uint8_t, 100'000>();
-	Bench<std::uint8_t, 1'000'000>();
+	Bench<std::uint8_t, 1000>();
+	Bench<std::uint8_t, 10000>();
+	Bench<std::uint8_t, 100000>();
+	Bench<std::uint8_t, 1000000>();
 
 	// Primes
 	Bench<std::uint8_t, 59>();
 	Bench<std::uint8_t, 79>();
 	Bench<std::uint8_t, 173>();
-	Bench<std::uint8_t, 6'133>();
-	Bench<std::uint8_t, 10'177>();
-	Bench<std::uint8_t, 25'253>();
-	Bench<std::uint8_t, 31'391>();
-	Bench<std::uint8_t, 50'432>();
+	Bench<std::uint8_t, 6133>();
+	Bench<std::uint8_t, 10177>();
+	Bench<std::uint8_t, 25253>();
+	Bench<std::uint8_t, 31391>();
+	Bench<std::uint8_t, 50432>();
 	
 	return EXIT_SUCCESS;
 }
