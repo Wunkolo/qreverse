@@ -15,8 +15,6 @@
 
 #include <qreverse.hpp>
 
-using ElementType = std::uint8_t;
-
 template<typename TimeT = std::chrono::nanoseconds>
 struct Measure
 {
@@ -67,7 +65,6 @@ void Bench()
 	std::chrono::nanoseconds Duration;
 
 	/// std::reverse
-
 	Duration = std::chrono::nanoseconds::zero();
 	for( std::size_t i = 0; i < TRIALCOUNT; i++ )
 	{
@@ -78,7 +75,6 @@ void Bench()
 		);
 	}
 	Duration /= TRIALCOUNT;
-
 	SpeedStd = Duration.count();
 
 	/// qreverse
@@ -92,7 +88,6 @@ void Bench()
 		);
 	}
 	Duration /= TRIALCOUNT;
-
 	SpeedQrev = Duration.count();
 
 	std::double_t SpeedUp =
@@ -102,9 +97,9 @@ void Bench()
 		<< Count << '|'
 		<< SpeedStd << " ns|"
 		<< SpeedQrev << " ns|"
-		<< (SpeedUp > 1.0 ? "**" : "")
+		<< (SpeedUp > 1.0 ? "**" : "*")
 		<< SpeedUp
-		<< (SpeedUp > 1.0 ? "**" : "")
+		<< (SpeedUp > 1.0 ? "**" : "*")
 		<< std::endl;
 
 	return;
