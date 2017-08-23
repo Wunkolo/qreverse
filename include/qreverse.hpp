@@ -270,10 +270,13 @@ inline void qReverse<1>(void* Array, std::size_t Count)
 	{
 		// Exchange the upper and lower element as we work our
 		// way down to the middle from either end
-		//printf("Naive\n");
-		std::swap<std::uint8_t>(
-			Array8[i],             // "lower" element
-			Array8[Count - i - 1]  // "upper" element
-		);
+		for( std::size_t i = 0; i < Count / 2; ++i )
+		{
+			// Exchange the upper and lower element as we work our
+			// way down to the middle from either end
+			std::uint8_t Temp(Array8[i]);
+			Array8[i] = Array8[Count - i - 1];
+			Array8[Count - i - 1] = Temp;
+		}
 	}
 }
