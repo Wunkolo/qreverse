@@ -79,13 +79,13 @@ int main( int argc, char* argv[])
 			if( OriginalElem[j] != ReversedElem[j] )
 			{
 				// Mismatch, not reversed
-				std::cout << "Not Reversed" << std::endl;
+				std::cout << "Array Not Reversed" << std::endl;
 				return EXIT_FAILURE;
 			}
 		}
 	}
 
 	// Successfully reversed
-	std::cout << "Reversed" << std::endl;
+	std::cout << "Array Reversed" << std::endl;
 	return EXIT_SUCCESS;
 }
