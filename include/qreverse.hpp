@@ -276,13 +276,8 @@ inline void qReverse<1>(void* Array, std::size_t Count)
 	{
 		// Exchange the upper and lower element as we work our
 		// way down to the middle from either end
-		for( std::size_t i = 0; i < Count / 2; ++i )
-		{
-			// Exchange the upper and lower element as we work our
-			// way down to the middle from either end
-			std::uint8_t Temp(Array8[i]);
-			Array8[i] = Array8[Count - i - 1];
-			Array8[Count - i - 1] = Temp;
-		}
+		std::uint8_t Temp(Array8[i]);
+		Array8[i] = Array8[Count - i - 1];
+		Array8[Count - i - 1] = Temp;
 	}
 }
