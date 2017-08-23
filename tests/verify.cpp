@@ -46,7 +46,7 @@ int main( int argc, char* argv[])
 		std::uint8_t* Element = &Array[i * ELEMENTSIZE];
 		for( std::size_t j = 0; j < ELEMENTSIZE; ++j)
 		{
-			Element[j] = i;
+			Element[j] = static_cast<std::uint8_t>(i);
 			std::cout << +Element[j] << ' ';
 		}
 	}
