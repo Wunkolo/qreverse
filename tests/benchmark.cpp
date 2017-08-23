@@ -16,9 +16,6 @@
 #include <qreverse.hpp>
 
 using ElementType = std::uint8_t;
-constexpr std::size_t ElementCount = 255;
-
-void PrintArray(const std::array<ElementType, ElementCount>& Array);
 
 template<typename TimeT = std::chrono::nanoseconds>
 struct Measure
@@ -45,21 +42,34 @@ struct Measure
 	}
 };
 
-template< typename ElementType, std::size_t Count >
+template< std::size_t ElementSize, std::size_t Count >
 void Bench()
 {
 	std::size_t SpeedStd = 0;
 	std::size_t SpeedQrev = 0;
 
+	// Compile-time generic structure used to benchmark an AoS of this size
+	struct ElementType
+	{
+		std::uint8_t u8[ElementSize];
+	};
+
+	// If compiler adds any padding/alignment bytes(and some do) then assert out
+	static_assert(
+		sizeof(ElementType) == ElementSize,
+		"ElementSize is pad-aligned and does not match element size"
+	);
+
 	std::vector<ElementType> Array(Count);
 
-#define COUNT 10000
+#define TRIALCOUNT 10000
 
 	std::chrono::nanoseconds Duration;
 
 	/// std::reverse
+
 	Duration = std::chrono::nanoseconds::zero();
-	for( std::size_t i = 0; i < COUNT; i++ )
+	for( std::size_t i = 0; i < TRIALCOUNT; i++ )
 	{
 		Duration += Measure<>::Duration(
 			std::reverse<decltype(Array.begin())>,
@@ -67,13 +77,13 @@ void Bench()
 			Array.end()
 		);
 	}
-	Duration /= COUNT;
+	Duration /= TRIALCOUNT;
 
 	SpeedStd = Duration.count();
 
 	/// qreverse
 	Duration = std::chrono::nanoseconds::zero();
-	for( std::size_t i = 0; i < COUNT; i++ )
+	for( std::size_t i = 0; i < TRIALCOUNT; i++ )
 	{
 		Duration += Measure<>::Duration(
 			qReverse<sizeof(ElementType)>,
@@ -81,7 +91,7 @@ void Bench()
 			Array.size()
 		);
 	}
-	Duration /= COUNT;
+	Duration /= TRIALCOUNT;
 
 	SpeedQrev = Duration.count();
 
@@ -119,40 +129,31 @@ int main()
 		<< "---" // Speedup
 		<< std::endl;
 	// Powers of two
-	Bench<std::uint8_t, 8>();
-	Bench<std::uint8_t, 16>();
-	Bench<std::uint8_t, 32>();
-	Bench<std::uint8_t, 64>();
-	Bench<std::uint8_t, 128>();
-	Bench<std::uint8_t, 256>();
-	Bench<std::uint8_t, 512>();
-	Bench<std::uint8_t, 1024>();
+	Bench<1, 8>();
+	Bench<1, 16>();
+	Bench<1, 32>();
+	Bench<1, 64>();
+	Bench<1, 128>();
+	Bench<1, 256>();
+	Bench<1, 512>();
+	Bench<1, 1024>();
 
 	// Powers of ten
-	Bench<std::uint8_t, 100>();
-	Bench<std::uint8_t, 1000>();
-	Bench<std::uint8_t, 10000>();
-	Bench<std::uint8_t, 100000>();
-	Bench<std::uint8_t, 1000000>();
+	Bench<1, 100>();
+	Bench<1, 1000>();
+	Bench<1, 10000>();
+	Bench<1, 100000>();
+	Bench<1, 1000000>();
 
 	// Primes
-	Bench<std::uint8_t, 59>();
-	Bench<std::uint8_t, 79>();
-	Bench<std::uint8_t, 173>();
-	Bench<std::uint8_t, 6133>();
-	Bench<std::uint8_t, 10177>();
-	Bench<std::uint8_t, 25253>();
-	Bench<std::uint8_t, 31391>();
-	Bench<std::uint8_t, 50432>();
-	
-	return EXIT_SUCCESS;
-}
+	Bench<1, 59>();
+	Bench<1, 79>();
+	Bench<1, 173>();
+	Bench<1, 6133>();
+	Bench<1, 10177>();
+	Bench<1, 25253>();
+	Bench<1, 31391>();
+	Bench<1, 50432>();
 
-void PrintArray(const std::array<ElementType, ElementCount>& Array)
-{
-	for( const ElementType& Value : Array )
-	{
-		std::cout << +Value << ',';
-	}
-	std::cout << std::endl;
+	return EXIT_SUCCESS;
 }
