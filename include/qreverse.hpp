@@ -1,7 +1,6 @@
 #pragma once
 #include <cstdint>
 #include <cstddef>
-#include <algorithm>
 #include <immintrin.h>
 
 #if defined(_MSC_VER)
@@ -78,7 +77,7 @@ inline std::uint16_t Swap16(std::uint16_t x)
 template< std::size_t ElementSize >
 inline void qReverse(void* Array, std::size_t Count)
 {
-	union PodElement
+	struct PodElement
 	{
 		std::uint8_t u8[ElementSize];
 	};
@@ -89,10 +88,9 @@ inline void qReverse(void* Array, std::size_t Count)
 	{
 		// Exchange the upper and lower element as we work our
 		// way down to the middle from either end
-		std::swap(
-			ArrayN[i],             // "lower" element
-			ArrayN[Count - i - 1]  // "upper" element
-		);
+		PodElement Temp(ArrayN[i]);
+		ArrayN[i] = ArrayN[Count - i - 1];
+		ArrayN[Count - i - 1] = Temp;
 	}
 }
 
