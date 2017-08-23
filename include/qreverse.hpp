@@ -102,9 +102,17 @@ inline void qReverse<1>(void* Array, std::size_t Count)
 	std::uint8_t* Array8 = reinterpret_cast<std::uint8_t*>(Array);
 	std::size_t i = 0;
 	// AVX-512
-#if defined(__AVX512BW__) && defined(__AVX512F__) && defined(__AVX512CD__) && defined(__AVX512VL__) && defined(__AVX512DQ__)
+#if defined(__AVX512BW__) && defined(__AVX512F__)|| defined(__AVX512DQ__)
 	for( std::size_t j = i; j < ((Count / 2) / 64); ++j )
 	{
+		//", ".join([hex(word[3] | word[2] << 8 | word[1] << 16 | word[0] << 24) for word in [(idx,idx+1,idx+2,idx+3) for idx in range(0,64,4)]])
+		// no _mm512_set_epi8 despite intel pretending there is
+		const __m512i ShuffleRev = _mm512_set_epi32(
+			0x00010203, 0x04050607, 0x08090a0b, 0x0c0d0e0f,
+			0x10111213, 0x14151617, 0x18191a1b, 0x1c1d1e1f,
+			0x20212223, 0x24252627, 0x28292a2b, 0x2c2d2e2f,
+			0x30313233, 0x34353637, 0x38393a3b,	0x3c3d3e3f
+		);
 		// Load 64 elements at once into one 64-byte register
 		__m512i Lower = _mm512_loadu_si512(
 			reinterpret_cast<__m512i*>(&Array8[i])
@@ -114,6 +122,8 @@ inline void qReverse<1>(void* Array, std::size_t Count)
 		);
 
 		// Reverse the byte order of our 64-byte vectors
+		Lower = _mm512_permutexvar_epi8(ShuffleRev,Lower);
+		Upper = _mm512_permutexvar_epi8(ShuffleRev,Upper);
 
 		// Place them at their swapped position
 		_mm512_storeu_si512(
