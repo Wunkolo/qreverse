@@ -2,17 +2,18 @@ cmake_minimum_required( VERSION 3.2.2 )
 project( qreversetest )
 
 set( CMAKE_CXX_STANDARD 11 )
+set( CMAKE_CXX_STANDARD_REQUIRED ON )
+set( CMAKE_CXX_EXTENSIONS OFF )
+
 set( CMAKE_COLOR_MAKEFILE ON )
 set( CMAKE_VERBOSE_MAKEFILE ON )
 
-include_directories(include)
 ### Optimizations
-if (MSVC)
+if( MSVC )
 	add_compile_options( /Oxs )
 	add_compile_options( /arch:AVX2 )
-	add_compile_options( /MT )
-	add_compile_options( /Wall )
-elseif (CMAKE_COMPILER_IS_GNUCXX)
+	add_compile_options( /W3 )
+elseif( CMAKE_COMPILER_IS_GNUCXX )
 	add_compile_options( -m64 )
 	add_compile_options( -march=native )
 	add_compile_options( -Ofast )
@@ -39,10 +40,15 @@ foreach( ElementSize ${ElementSizes})
 		"Verify${ElementSize}"
 		tests/verify.cpp
 	)
+	target_include_directories(
+		"Verify${ElementSize}"
+		PRIVATE
+		include
+	)
 	target_compile_definitions(
 		"Verify${ElementSize}"
 		PRIVATE
-		ELEMENTSIZE=${ElementSize}
+		-DELEMENTSIZE=${ElementSize}
 	)
 	# Add tests for each element size
 	foreach( ElementCount ${ElementCounts})
@@ -53,11 +59,17 @@ foreach( ElementSize ${ElementSizes})
 	endforeach( ElementCount )
 endforeach( ElementSize )
 
-
+# Benchmark
 add_executable(
 	Benchmark
 	tests/benchmark.cpp
 )
+target_include_directories(
+	Benchmark
+	PRIVATE
+	include
+)
+
 add_test(
 	NAME Benchmark
 	COMMAND Benchmark
