@@ -1,9 +1,10 @@
 #pragma once
 #include <cstdint>
 #include <cstddef>
-#include <immintrin.h>
 
 #if defined(_MSC_VER)
+
+#include <intrin.h>
 
 inline std::uint64_t Swap64(std::uint64_t x)
 {
@@ -21,6 +22,8 @@ inline std::uint16_t Swap16(std::uint16_t x)
 }
 
 #elif defined(__GNUC__) || defined(__clang__)
+
+#include <x86intrin.h>
 
 inline std::uint64_t Swap64(std::uint64_t x)
 {
@@ -101,11 +104,14 @@ inline void qReverse<1>(void* Array, std::size_t Count)
 	std::uint8_t* Array8 = reinterpret_cast<std::uint8_t*>(Array);
 	std::size_t i = 0;
 	// AVX-512
-#if defined(__AVX512BW__) && defined(__AVX512F__)|| defined(__AVX512DQ__)
+#if defined(__AVX512F__)|| defined(__AVX512VBMI__)
 	for( std::size_t j = i; j < ((Count / 2) / 64); ++j )
 	{
-		//", ".join([hex(word[3] | word[2] << 8 | word[1] << 16 | word[0] << 24) for word in [(idx,idx+1,idx+2,idx+3) for idx in range(0,64,4)]])
 		// no _mm512_set_epi8 despite intel pretending there is
+		// _mm512_set_epi32 for now
+
+		// Quick python script to generate this array
+		//", ".join([hex(word[3] | word[2] << 8 | word[1] << 16 | word[0] << 24) for word in [(idx,idx+1,idx+2,idx+3) for idx in range(0,64,4)]])
 		const __m512i ShuffleRev = _mm512_set_epi32(
 			0x00010203, 0x04050607, 0x08090a0b, 0x0c0d0e0f,
 			0x10111213, 0x14151617, 0x18191a1b, 0x1c1d1e1f,
