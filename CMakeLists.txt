@@ -1,10 +1,12 @@
 cmake_minimum_required( VERSION 3.2.2 )
 project( qreversetest )
 
+### Standard
 set( CMAKE_CXX_STANDARD 11 )
 set( CMAKE_CXX_STANDARD_REQUIRED ON )
 set( CMAKE_CXX_EXTENSIONS OFF )
 
+### Verbosity
 set( CMAKE_COLOR_MAKEFILE ON )
 set( CMAKE_VERBOSE_MAKEFILE ON )
 
@@ -24,11 +26,13 @@ endif()
 ### Tests
 enable_testing()
 
+# Element sizes in bytes that will be tested
 set(
 	ElementSizes
 	1 2 4 8 16
 )
 
+# Element counts that will be tested to each element size
 set(
 	ElementCounts
 	2 5 10 17 32 100
@@ -48,7 +52,7 @@ foreach( ElementSize ${ElementSizes})
 	target_compile_definitions(
 		"Verify${ElementSize}"
 		PRIVATE
-		-DELEMENTSIZE=${ElementSize}
+		ELEMENTSIZE=${ElementSize}
 	)
 	# Add tests for each element size
 	foreach( ElementCount ${ElementCounts})
