@@ -152,8 +152,9 @@ Given an array of `11` bytes that we want to reverse. We divide by two to get th
 // Does not call assignment or copy overloads
 // Accelerated using - 32-bit bswap instruction
 template<>
-void qReverse<std::uint8_t>( std::uint8_t* Array, std::size_t Count )
+inline void qReverse<1>(void* Array, std::size_t Count)
 {
+	std::uint8_t* Array8 = reinterpret_cast<std::uint8_t*>(Array);
 	std::size_t i = 0;
 
 	// Using a new iteration variable "j" to illustrate that we know
@@ -285,38 +286,38 @@ Lets draft our code to get ready for some `SSSE3` byte swapping and create our o
 #include <tmmintrin.h>
 
 ...
-	for( std::size_t j = i; j < ((Count / 2) / 16); ++j )
-	{
-		const __m128i ShuffleRev = _mm_set_epi8(
-			0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15
-		);
-		// Load 16 elements at once into one 16-byte register
-		__m128i Lower = _mm_loadu_si128(
-			reinterpret_cast<__m128i*>(&Array8[i])
-		);
-		__m128i Upper = _mm_loadu_si128(
-			reinterpret_cast<__m128i*>(&Array8[Count - i - 16])
-		);
+for( std::size_t j = i; j < ((Count / 2) / 16); ++j )
+{
+	const __m128i ShuffleRev = _mm_set_epi8(
+		0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15
+	);
+	// Load 16 elements at once into one 16-byte register
+	__m128i Lower = _mm_loadu_si128(
+		reinterpret_cast<__m128i*>(&Array8[i])
+	);
+	__m128i Upper = _mm_loadu_si128(
+		reinterpret_cast<__m128i*>(&Array8[Count - i - 16])
+	);
 
-		// Reverse the byte order of our 16-byte vectors
-		Lower = _mm_shuffle_epi8(Lower, ShuffleRev);
-		Upper = _mm_shuffle_epi8(Upper, ShuffleRev);
+	// Reverse the byte order of our 16-byte vectors
+	Lower = _mm_shuffle_epi8(Lower, ShuffleRev);
+	Upper = _mm_shuffle_epi8(Upper, ShuffleRev);
 
-		// Place them at their swapped position
-		_mm_storeu_si128(
-			reinterpret_cast<__m128i*>(&Array8[i]),
-			Upper
-		);
-		_mm_storeu_si128(
-			reinterpret_cast<__m128i*>(&Array8[Count - i - 16]),
-			Lower
-		);
+	// Place them at their swapped position
+	_mm_storeu_si128(
+		reinterpret_cast<__m128i*>(&Array8[i]),
+		Upper
+	);
+	_mm_storeu_si128(
+		reinterpret_cast<__m128i*>(&Array8[Count - i - 16]),
+		Lower
+	);
 
-		// 16 elements at a time
-		i += 16;
-	}
-	// Right above our Swap64 implementation...
-	for( std::size_t j = i ; j < ( (Count/2) / 8 ) ; ++j)
+	// 16 elements at a time
+	i += 16;
+}
+// Right above our Swap64 implementation...
+for( std::size_t j = i ; j < ( (Count/2) / 8 ) ; ++j)
 ...
 ```
 
