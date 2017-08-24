@@ -74,6 +74,12 @@ target_include_directories(
 	include
 )
 
+target_compile_definitions(
+	Benchmark
+	PRIVATE
+	ELEMENTSIZE=1
+)
+
 add_test(
 	NAME Benchmark
 	COMMAND Benchmark

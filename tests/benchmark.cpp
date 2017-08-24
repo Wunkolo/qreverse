@@ -15,6 +15,20 @@
 
 #include <qreverse.hpp>
 
+/*
+For use with cmake:
+	Benchmarks qreverse against std::reverse at the designated
+	compile-time element size.
+
+	Define ELEMENTSIZE preprocessor value to adjust verified element size
+*/
+
+#ifndef ELEMENTSIZE
+#define ELEMENTSIZE 1
+#endif
+
+#define TRIALCOUNT 10000
+
 template<typename TimeT = std::chrono::nanoseconds>
 struct Measure
 {
@@ -59,8 +73,6 @@ void Bench()
 	);
 
 	std::vector<ElementType> Array(Count);
-
-#define TRIALCOUNT 10000
 
 	std::chrono::nanoseconds Duration;
 
@@ -123,32 +135,33 @@ int main()
 		<< "---|" // qReverse
 		<< "---" // Speedup
 		<< std::endl;
+
 	// Powers of two
-	Bench<1, 8>();
-	Bench<1, 16>();
-	Bench<1, 32>();
-	Bench<1, 64>();
-	Bench<1, 128>();
-	Bench<1, 256>();
-	Bench<1, 512>();
-	Bench<1, 1024>();
+	Bench< ELEMENTSIZE, 8 >();
+	Bench< ELEMENTSIZE, 16 >();
+	Bench< ELEMENTSIZE, 32 >();
+	Bench< ELEMENTSIZE, 64 >();
+	Bench< ELEMENTSIZE, 128 >();
+	Bench< ELEMENTSIZE, 256 >();
+	Bench< ELEMENTSIZE, 512 >();
+	Bench< ELEMENTSIZE, 1024 >();
 
 	// Powers of ten
-	Bench<1, 100>();
-	Bench<1, 1000>();
-	Bench<1, 10000>();
-	Bench<1, 100000>();
-	Bench<1, 1000000>();
+	Bench< ELEMENTSIZE, 100 >();
+	Bench< ELEMENTSIZE, 1000 >();
+	Bench< ELEMENTSIZE, 10000 >();
+	Bench< ELEMENTSIZE, 100000 >();
+	Bench< ELEMENTSIZE, 1000000 >();
 
 	// Primes
-	Bench<1, 59>();
-	Bench<1, 79>();
-	Bench<1, 173>();
-	Bench<1, 6133>();
-	Bench<1, 10177>();
-	Bench<1, 25253>();
-	Bench<1, 31391>();
-	Bench<1, 50432>();
+	Bench< ELEMENTSIZE, 59 >();
+	Bench< ELEMENTSIZE, 79 >();
+	Bench< ELEMENTSIZE, 173 >();
+	Bench< ELEMENTSIZE, 6133 >();
+	Bench< ELEMENTSIZE, 10177 >();
+	Bench< ELEMENTSIZE, 25253 >();
+	Bench< ELEMENTSIZE, 31391 >();
+	Bench< ELEMENTSIZE, 50432 >();
 
 	return EXIT_SUCCESS;
 }
