@@ -77,7 +77,7 @@ inline void qReverse(void* Array, std::size_t Count)
 }
 ```
 
-We can do better! This "plain ol data" assumption can be made for lots of different types of data. Most usages of `struct` are intended to be treated as "bags of data" and do not have the limitation of additional memory-movement logic for copying or swapping since they are intended only to communicate a structure of interpretation of bytes. The more obvious case-study can also be having an array of `chars` found in an ASCII `string` or maybe a row of pixel data. **From this point on let's just assume that the sequence of data we are dealing with are to be these "bags of data" instances** that do not involve any kind of `operator=` or `Foo (const Foo&)` overhead so that we can just think of this data as bytes for our optimizations.
+**We can do better!** This "plain ol data" assumption can be made for lots of different types of data. Most usages of `struct` are intended to be treated as "bags of data" and do not have the limitation of additional memory-movement logic for copying or swapping since they are intended only to communicate a structure of interpretation of bytes. The more obvious case-study can also be having an array of `chars` found in an ASCII `string` or maybe a row of pixel data. **From this point on let's just assume that the sequence of data we are dealing with are to be these "bags of data" instances** that do not involve any kind of `operator=` or `Foo (const Foo&)` overhead so that we can just think of this data as bytes for our optimizations.
 
 Most of us are running 64-bit or 32-bit machines or have register sizes that are easily much bigger than just 1 byte(the animation above had register sizes that are 8 bytes, which is the size of a single 64-bit register). One way we can speed this up is by loading in a full register-sized chunk of bytes, flipping this chunk of bytes within the register, and then placing it on the other end! Swapping all the bytes in the registers is a popular operation in networking called an `endian swap` and x86 happens to have just the instruction to do this!
 
@@ -252,11 +252,9 @@ Element Count|std::reverse|qReverse|Speedup Factor
 31391|20050 ns|878 ns|**22.836**
 50432|33307 ns|1658 ns|**20.089**
 
-And so across the board we get speedups up to _**x24!**_
+And so across the board we get speedups up to _**x24!**_ before dipping down again potentially due to cache line issues with larger data sizes.
 
-If we feed our algorithm array sizes of around 16 or lower though we start to reach a bit of a performance loss. Each routine in our chain of chunk-swapping loops comes with some _conditional code tax_ before finally falling back to the `std::swap` method that `std::reverse` would have already been doing right from the get-go. So long as we feed our algorithm arrays greater than about 16 characters then we're benefiting from a potentially huge speedup as our array size increases.
-
-## SIMD
+# SIMD
 
 The `bswap` instruction can reverse the byte-order of `2`, `4`, or `8` bytes, but several x86 extensions later and now it is possible to swap the byte order of `16`, `32`, even `64` bytes all at once through the use of `SIMD`. `SIMD` stands for *Single Instruction Multiple Data* and allows us to operate upon multiple lanes of data in parallel using only a single instruction. Much like our `bswap` which atomically reverses all four bytes in a register, `SIMD` provides and entire instruction set of arithmetic that allows us to manipulate multiple instances of data at once using a single instruction in parallel. These chunks of data that are operated upon tend to be called `vectors` of data. We will be able to suspend multiple bytes of data into a `vector` to reverse its order and place it on the opposite end similarly to our `bswap` implementation.
 
@@ -276,7 +274,7 @@ Some are kept around for compatibilities sake(`MMX`) and some are so recent, elu
 
 At the moment (July 21, 2017) the steam hardware survey states that **94.42%** of all CPUs on Steam feature `SSSE3`([store.steampowered.com/hwsurvey/](http://store.steampowered.com/hwsurvey/)). Which is what we will be using in our first step into `SIMD` territory. `SSSE3` in particular due to its `_mm_shuffle_epi8` instruction which lets us _shuffle_ bytes within our 128-bit register with relative ease for our implementation.
 
-## SSSE3
+# SSSE3
 
 `SSE` stands for "Streaming SIMD Extensions" while `SSSE3` stands for "Supplemental Streaming SIMD Extensions 3" which is the _forth_ iteration of `SSE` technology. SSE introduces to us registers that allow for some `128` bit vector arithmetic. In C or C++ code we represent the intent to use these registers using types such as `__m128i` or `__m128d` which tell the compiler that any notion of _storage_ for these types should find their place within the 128-bit `SSE` registers when ever possible. We have intrinsics such as `_mm_add_epi8` which will add two `__m128i`s together, and treat them as a _vector_ of 8-bit elements. The `i` and `d` found in `__m128i` and `__m128d` are to notify intent of the 128-register's interpretation as `i`nteger and `d`ouble respectively. `__m128` is assumed to be a vector of four `floats` by default. Since we're just dealing with integer-byte data we care only for `__m128i` which gives access to the `_mm_shuffle_epi8` instruction.
 
@@ -347,7 +345,7 @@ Element Count|std::reverse|qReverse|Speedup Factor
 31391|21943 ns|1162 ns|**18.884**
 50432|33692 ns|2169 ns|**15.533**
 
-## AVX2
+# AVX2
 
 Lets go one step further and work with the even larger 256-bit registers that the `AVX/AVX2` extension provides and reverse *32 byte chunks* at a time. Implementation is very similar to the `SSSE3` one: we load in *unaligned* data into our 256-bit registers using the `__m256i` type. The thing with `AVX` is that the `256-bit` register is actually two individual `128-bit` _lanes_ being operated in parallel as one larger `256-bit` register and overlaps in functionality with the `SSE` registers. Now here's where things get tricky, there is no `_mm256_shuffle_epi8` instruction that works like we think it would. Since we're just operating on 128-bit lanes in parallel, `AVX/AVX2` instructions introduces a limitation in which some cross-lane arithmetic requires special cross-lane attention. Some instructions will accept 256-bit `AVX` registers but only actually operates upon 128-bit lanes. The trick here is that rather than reverseing the 256-bits all in one go, instead we reverse the bytes of the 128-bit lanes, as if we were shuffling two 128-bit registers like in our `SSSE3` implementation, and then reverse the two 128-bit lanes themselves with whatever cross-lane arithmetic we _can_ do.
 
