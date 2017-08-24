@@ -255,14 +255,6 @@ And so across the board we get speedups up to _**x24!**_
 
 If we feed our algorithm array sizes of around 16 or lower though we start to reach a bit of a performance loss. Each routine in our chain of chunk-swapping loops comes with some _conditional code tax_ before finally falling back to the `std::swap` method that `std::reverse` would have already been doing right from the get-go. So long as we feed our algorithm arrays greater than about 16 characters then we're benefiting from a potentially huge speedup as our array size increases.
 
-Can we do a little better? What about those "middle" cases.
-
-# The middle "chunk" (TODO)
-
-Once we work our way down the middle and end up with something like `4` "middle" elements left then we are just one `Swap32` left from having the entire array reversed. What if we worked our way down to the middle and ended up with `5` elements though? This would not be possible actually so long as we have `Swap16`. `5` middle elements would mean we have `one middle element` with `two elements on either side`. Our `for( std::size_t j = i/2; j < ( (Count/2) / 2)` would catch that and `Swap16` the two elements on either side, getting us just `1` element left right in the middle which can stay right where it is within a reversed array(since the middle-most element in an odd-numbered array is our *pivot* and doesn't have to move anywhere).
-
-TODO: Later we can find a way to accelerate our algorithm to have it consider these pivot-cases efficiently so that rather than calling two `Swap16`s on either half of a 4-byte case it could just call one last `Swap32` or even a bigger before it even parks itself in that situation of having to use the naive swap. Something like this could remove the use of the naive swap pretty much entirely.
-
 ## SIMD
 
 The `bswap` instruction can reverse the byte-order of `2`, `4`, or `8` bytes, but several x86 extensions later and now it is possible to swap the byte order of `16`, `32`, even `64` bytes all at once through the use of `SIMD`. `SIMD` stands for *Single Instruction Multiple Data* and allows us to operate upon multiple lanes of data in parallel using only a single instruction. Much like our `bswap` which atomically reverses all four bytes in a register, `SIMD` provides and entire instruction set of arithmetic that allows us to manipulate multiple instances of data at once using a single instruction in parallel. These chunks of data that are operated upon tend to be called `vectors` of data. We will be able to suspend multiple bytes of data into a `vector` to reverse its order and place it on the opposite end similarly to our `bswap` implementation.
@@ -356,11 +348,36 @@ Element Count|std::reverse|qReverse|Speedup Factor
 
 ## AVX2
 
-Lets go one step further and work with the even larger 256-bit registers that the `AVX/AVX2` extension provides and reverse *32 byte chunks* at a time. Implementation is very similar to the `SSSE3` one: we load in *unaligned* data into our 256-bit registers using the `__m256i` type. The thing with `AVX` is that the `256-bit` register is actually two individual `128-bit` _lanes_ being operated in parallel as one larger `256-bit` register and overlaps in functionality with the `SSE` registers. This is a bit of an issue later on.
+Lets go one step further and work with the even larger 256-bit registers that the `AVX/AVX2` extension provides and reverse *32 byte chunks* at a time. Implementation is very similar to the `SSSE3` one: we load in *unaligned* data into our 256-bit registers using the `__m256i` type. The thing with `AVX` is that the `256-bit` register is actually two individual `128-bit` _lanes_ being operated in parallel as one larger `256-bit` register and overlaps in functionality with the `SSE` registers. Now here's where things get tricky, there is no `_mm256_shuffle_epi8` instruction that works like we think it would. Since we're just operating on 128-bit lanes in parallel, `AVX/AVX2` instructions introduces a limitation in which some cross-lane arithmetic requires special cross-lane attention. Some instructions will accept 256-bit `AVX` registers but only actually operates upon 128-bit lanes. The trick here is that rather than reverseing the 256-bits all in one go, instead we reverse the bytes of the 128-bit lanes, as if we were shuffling two 128-bit registers like in our `SSSE3` implementation, and then reverse the two 128-bit lanes themselves with whatever cross-lane arithmetic we _can_ do.
 
-Access to `AVX2` intrinsics requires inclusion of the `immintrin.h` header in our source file. and we model our algorithm to read our larger spanned values much like for `SSSE3`:
+[_mm256_shuffle_epi8](https://software.intel.com/sites/landingpage/IntrinsicsGuide/#techs=AVX,AVX2&text=shuffle&expand=4726) is an `AVX2` instruction that shuffles the 128-bit lanes so we can get this out the way pretty easily.
 
 ```cpp
+const __m256i ShuffleRev = _mm256_set_epi8(
+	0, 1, 2, 3, 4, 5, 6, 7, 8, 9,10,11,12,13,14,15,
+	0, 1, 2, 3, 4, 5, 6, 7, 8, 9,10,11,12,13,14,15
+);
+// Load 32 elements at once into one 32-byte register
+__m256i Lower = _mm256_loadu_si256(
+	reinterpret_cast<__m256i*>(&Array8[i])
+);
+__m256i Upper = _mm256_loadu_si256(
+	reinterpret_cast<__m256i*>(&Array8[Count - i - 32])
+);
+
+// Reverse each the bytes in each 128-bit lane
+Lower = _mm256_shuffle_epi8(Lower,ShuffleRev);
+Upper = _mm256_shuffle_epi8(Upper,ShuffleRev);
+```
+
+[_mm256_permute2x128_si256](https://software.intel.com/sites/landingpage/IntrinsicsGuide/#techs=AVX,AVX2&text=shuffle&expand=3896) is another `AVX2` instruction that permutes the 128-bit lanes of two 256-bit registers:
+
+![](/images/_mm256_permute2x128_si256.jpg)
+
+Meaning we can pass in two big 256-bit registers, and use an 8-byte immediate value to pick how we want to build our new 256-bit vector. We can use this and pass in the same variable for both of the registers we are picking from to simulate a big 128-bit swap!
+
+```cpp
+...
 for( std::size_t j = i; j < ((Count / 2) / 32); ++j )
 {
 	const __m256i ShuffleRev = _mm256_set_epi8(
@@ -375,13 +392,12 @@ for( std::size_t j = i; j < ((Count / 2) / 32); ++j )
 		reinterpret_cast<__m256i*>(&Array8[Count - i - 32])
 	);
 
-	// Reverse each the bytes in each 128-bit lane
+	// Reverse the byte order of our 32-byte vectors
 	Lower = _mm256_shuffle_epi8(Lower,ShuffleRev);
 	Upper = _mm256_shuffle_epi8(Upper,ShuffleRev);
 
-	// Reverse the two 128-bit lanes with each other
-	Lower = _mm256_permute2f128_si256(Lower,Lower,1);
-	Upper = _mm256_permute2f128_si256(Upper,Upper,1);
+	Lower = _mm256_permute2x128_si256(Lower,Lower,1);
+	Upper = _mm256_permute2x128_si256(Upper,Upper,1);
 
 	// Place them at their swapped position
 	_mm256_storeu_si256(
@@ -396,15 +412,11 @@ for( std::size_t j = i; j < ((Count / 2) / 32); ++j )
 	// 32 elements at a time
 	i += 32;
 }
+// Right above the SSSE3 implementation
+...
 ```
 
-Now here's where things get tricky, there is no `_mm256_shuffle_epi8` instruction available for us to use. Since we're just operating on 128-bit lanes in parallel `AVX/AVX2` instructions introduces a limitation in which cross-lane arithmetic requires some special attention. The trick here is that rather than reverseing the 256-bits all in one go, we reverse the bytes of the 128-bit lanes, as if we were shuffling two 128-bit registers like in our `SSSE3` implementation, and then reverse the two 128-bit lanes themselves.
-
-[_mm256_shuffle_epi8](https://software.intel.com/sites/landingpage/IntrinsicsGuide/#techs=AVX,AVX2&text=shuffle&expand=4726) is an `AVX2` instruction that shuffles the 128-bit lanes so we can get this out the way.
-
-[_mm256_permute2x128_si256](https://software.intel.com/sites/landingpage/IntrinsicsGuide/#techs=AVX,AVX2&text=shuffle&expand=3896) is another `AVX2` instruction that permutes the 128-bit lanes of two 256-bit registers. Meaning we can pass in two big 256-bit registers, and use an 8-byte immediate value to pick how we want to build our new 256-bit vector. We can use this and pass in the same variable for both of the registers we are picking from to simulate a big 128-bit swap!
-
-![](/images/_mm256_permute2x128_si256.jpg)
+Benchmarks:
 
 Element Count|std::reverse|qReverse|Speedup Factor
 ---|---|---|---
@@ -430,3 +442,10 @@ Element Count|std::reverse|qReverse|Speedup Factor
 31391|18951 ns|1460 ns|**12.980**
 50432|33806 ns|2155 ns|**15.687**
 
+# AVX512 ( TODO )
+
+# The middle chunk ( TODO )
+
+Once we work our way down the middle and end up with something like `4` "middle" elements left then we are just one `Swap32` left from having the entire array reversed. What if we worked our way down to the middle and ended up with `5` elements though? This would not be possible actually so long as we have `Swap16`. `5` middle elements would mean we have `one middle element` with `two elements on either side`. Our `for( std::size_t j = i/2; j < ( (Count/2) / 2)` would catch that and `Swap16` the two elements on either side, getting us just `1` element left right in the middle which can stay right where it is within a reversed array(since the middle-most element in an odd-numbered array is our *pivot* and doesn't have to move anywhere).
+
+TODO: Later we can find a way to accelerate our algorithm to have it consider these pivot-cases efficiently so that rather than calling two `Swap16`s on either half of a 4-byte case it could just call one last `Swap32` or even a bigger before it even parks itself in that situation of having to use the naive swap. Something like this could remove the use of the naive swap pretty much entirely.
