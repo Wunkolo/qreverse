@@ -76,21 +76,28 @@ inline std::uint16_t Swap16(std::uint16_t x)
 
 #endif
 
-
 template< std::size_t ElementSize >
 inline void qReverse(void* Array, std::size_t Count)
 {
-	struct PodElement
+	// An abstraction to treat the array elements purely as bytes
+	struct ByteElement
 	{
 		std::uint8_t u8[ElementSize];
 	};
-	PodElement* ArrayN = reinterpret_cast<PodElement*>(Array);
+	ByteElement* ArrayN = reinterpret_cast<ByteElement*>(Array);
+	
+	// If compiler adds any padding/alignment bytes(and some do) then assert out
+	static_assert(
+		sizeof(ByteElement) == ElementSize,
+		"ByteElement is pad-aligned and does not match specified element size"
+	);
+	
 	// We're only iterating through half of the size of the Array
 	for( std::size_t i = 0; i < Count / 2; ++i )
 	{
 		// Exchange the upper and lower element as we work our
 		// way down to the middle from either end
-		PodElement Temp(ArrayN[i]);
+		ByteElement Temp(ArrayN[i]);
 		ArrayN[i] = ArrayN[Count - i - 1];
 		ArrayN[Count - i - 1] = Temp;
 	}

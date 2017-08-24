@@ -54,23 +54,31 @@ An animation of the basic algorithm:
 ![](/images/Naive-Byte.gif)
 
 Our own custom implementation of this algorithm to start us off:
-We'll template the element-size at compile-time and emit a pseudo-structure that fits this size in an attempt to keep this illustrative implementation as generic as possible. By having the element-size be templated we can make specific template specializations for certain sizes while all other sizes fall-back to this naive algorithm. Having this done with a template allows this look-up to resolve at compile-time rather than check a "element-size" argument against a list of available implementations at run-time.
+We'll template the element-size at compile-time and emit a pseudo-structure that fits this size in an attempt to keep this illustrative implementation as generic as possible for an element of _any_ size in bytes. By having the element-size be templated we can make specific template specializations for certain element-sizes while all other sizes fall-back to this naive algorithm. Having this done with a template allows the proper specialization to be instanced at compile-time rather than compare a runtime "element-size" argument against a list of available implementations.
 
 ```cpp
 template< std::size_t ElementSize >
 inline void qReverse(void* Array, std::size_t Count)
 {
-	struct PodElement
+	// An abstraction to treat the array elements as raw bytes
+	struct ByteElement
 	{
 		std::uint8_t u8[ElementSize];
 	};
-	PodElement* ArrayN = reinterpret_cast<PodElement*>(Array);
-	// We're only iterating through half of the size of the 
+	ByteElement* ArrayN = reinterpret_cast<ByteElement*>(Array);
+	
+	// If compiler adds any padding/alignment bytes(and some do) then assert out
+	static_assert(
+		sizeof(ByteElement) == ElementSize,
+		"ByteElement is pad-aligned and does not match specified element size"
+	);
+	
+	// We're only iterating through half of the size of the Array
 	for( std::size_t i = 0; i < Count / 2; ++i )
 	{
 		// Exchange the upper and lower element as we work our
 		// way down to the middle from either end
-		PodElement Temp(ArrayN[i]);
+		ByteElement Temp(ArrayN[i]);
 		ArrayN[i] = ArrayN[Count - i - 1];
 		ArrayN[Count - i - 1] = Temp;
 	}

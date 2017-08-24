@@ -69,7 +69,7 @@ void Bench()
 	// If compiler adds any padding/alignment bytes(and some do) then assert out
 	static_assert(
 		sizeof(ElementType) == ElementSize,
-		"ElementSize is pad-aligned and does not match element size"
+		"ElementSize is pad-aligned and does not match specified element size"
 	);
 
 	std::vector<ElementType> Array(Count);
