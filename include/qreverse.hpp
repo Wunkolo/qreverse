@@ -84,9 +84,8 @@ inline void qReverse(void* Array, std::size_t Count)
 	{
 		std::uint8_t u8[ElementSize];
 	};
-	PodElement* ArrayN
-		= reinterpret_cast<PodElement*>(Array);
-	// We're only iterating through half of the size of the Array8
+	PodElement* ArrayN = reinterpret_cast<PodElement*>(Array);
+	// We're only iterating through half of the size of the Array
 	for( std::size_t i = 0; i < Count / 2; ++i )
 	{
 		// Exchange the upper and lower element as we work our
@@ -164,8 +163,8 @@ inline void qReverse<1>(void* Array, std::size_t Count)
 		Lower = _mm256_shuffle_epi8(Lower,ShuffleRev);
 		Upper = _mm256_shuffle_epi8(Upper,ShuffleRev);
 
-		Lower = _mm256_permute2f128_si256(Lower,Lower,1);
-		Upper = _mm256_permute2f128_si256(Upper,Upper,1);
+		Lower = _mm256_permute2x128_si256(Lower,Lower,1);
+		Upper = _mm256_permute2x128_si256(Upper,Upper,1);
 
 		// Place them at their swapped position
 		_mm256_storeu_si256(
@@ -185,6 +184,9 @@ inline void qReverse<1>(void* Array, std::size_t Count)
 #if defined(__SSSE3__)
 	for( std::size_t j = i; j < ((Count / 2) / 16); ++j )
 	{
+		const __m128i ShuffleRev = _mm_set_epi8(
+			0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15
+		);
 		// Load 16 elements at once into one 16-byte register
 		__m128i Lower = _mm_loadu_si128(
 			reinterpret_cast<__m128i*>(&Array8[i])
@@ -194,10 +196,6 @@ inline void qReverse<1>(void* Array, std::size_t Count)
 		);
 
 		// Reverse the byte order of our 16-byte vectors
-
-		const __m128i ShuffleRev = _mm_set_epi8(
-			0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15
-		);
 		Lower = _mm_shuffle_epi8(Lower, ShuffleRev);
 		Upper = _mm_shuffle_epi8(Upper, ShuffleRev);
 
