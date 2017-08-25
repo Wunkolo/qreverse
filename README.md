@@ -402,7 +402,7 @@ Element Count|std::reverse|qReverse|Speedup Factor
 31391|19867 ns|1839 ns|**10.803**
 50432|32826 ns|3170 ns|**10.355**
 
-Speedups of up to _**x19**_!.. but this is lower than the `bswap` version which reached up to _**x27**_? (TODO)
+Speedups of up to _**x20**_!.. but this is lower than the `bswap` version which reached up to _**x27**_? Maybe some prefetching might help this algorithm play nice with the cache(Todo)
 
 # AVX2
 
