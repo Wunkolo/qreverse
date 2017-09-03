@@ -333,7 +333,7 @@ At the moment (July 21, 2017) the steam hardware survey states that **94.42%** o
 
 # SSSE3
 
-`SSE` stands for "Streaming SIMD Extensions" while `SSSE3` stands for "Supplemental Streaming SIMD Extensions 3" which is the _forth_ iteration of `SSE` technology. SSE introduces registers that allow for some `128` bit vector arithmetic. In C or C++ code the intent to use these registers is represented using types such as `__m128i` or `__m128d` which tell the compiler that any notion of _storage_ for these types should find their place within the 128-bit `SSE` registers when ever possible. Intrinsics such as `_mm_add_epi8` which will add two `__m128i`s together, and treat them as a _vector_ of 8-bit elements are now available within C and C++ code. The `i` and `d` found in `__m128i` and `__m128d` are to notify intent of the 128-register's interpretation as `i`nteger and `d`ouble respectively. `__m128` is assumed to be a vector of four `floats` by default. Since integer-data is what is being operated upon, the `__m128i` data type will be used as our data representation which gives access to the `_mm_shuffle_epi8` instruction.
+`SSE` stands for "Streaming SIMD Extensions" while `SSSE3` stands for "Supplemental Streaming SIMD Extensions 3" which is the _forth_ iteration of `SSE` technology. SSE introduces registers that allow for some `128` bit vector arithmetic. In C or C++ code the intent to use these registers is represented using types such as `__m128i` or `__m128d` which tell the compiler that any notion of _storage_ for these types should find their place within the 128-bit `SSE` registers when ever possible. Intrinsics such as `_mm_add_epi8` which will add two `__m128i`s together, and treat them as a _vector_ of 8-bit elements are now available within C and C++ code. The `i` and `d` found in `__m128i` and `__m128d` are to notify intent of the 128-register's interpretation as `i`nteger and `d`ouble respectively. `__m128` is assumed to be a vector of four `floats` by default. Since integer-data is what is being operated upon, the `__m128i` data type will be used as our data representation which gives access to the `_mm_shuffle_epi8` instruction. Note that `SSSE3` requires the gcc compile flag `-mssse3`.
 
 Now to draft a `SSSE3` byte swapping implementation and create a simulated 16-byte `bswap` using `SSSE3`. First, use `#include <tmmintrin.h>` in C or C++ code to expose every intrinsic from `MMX` up until `SSSE3`. Then, use the instrinsic `_mm_loadu_si128` to `load` an `u`naligned `s`igned `i`nteger vector of `128` bits into a `__m128i` variable. At a hardware level, _unaligned_ data and _aligned_ data interfaces with the memory hardware slightly differently and can provide for some further slight speedups should data-alignment be guarenteed. No assumption about the memory alignment of the data that we are operating upon can be assumed so unaligned memory access will be used. When done with the vector-arithmetic, call an equivalent `_mm_storeu_si128` which stores our vector data into an unaligned memory address. This `SSSE3` implementation will go right above the previous `Swap64` implementation, ensuring that our algorithm exhausts as much of the larger chunks as possible before resorting to the smaller ones:
 
@@ -406,7 +406,7 @@ Speedups of up to _**x20**_!.. but this is lower than the `bswap` version which 
 
 # AVX2
 
-The implementation can go even further to work with the even larger 256-bit registers that the `AVX/AVX2` extension provides and reverse *32 byte chunks* at a time. Implementation is very similar to the `SSSE3` one: load in *unaligned* data into a 256-bit register using the `__m256i` type. The issue with `AVX/AVX2` is that the `256-bit` register is actually two individual `128-bit` _lanes_ being operated in parallel as one larger `256-bit` register and overlaps in functionality with the `SSE` register almost as an additional layer of abstraction added upon `SSE`. Now here's where things get tricky, there is no `_mm256_shuffle_epi8` instruction that works like we think it would. Since it's just operating on two 128-bit lanes in parallel, `AVX/AVX2` instructions introduces a limitation in which some cross-lane arithmetic requires special cross-lane attention. Some instructions will accept 256-bit `AVX` registers but only actually operates upon 128-bit lanes. The trick here is that rather than trying to verse a 256-bit register atomically all in one go, instead reverse the bytes within the two 128-bit lanes, as if shuffling two 128-bit registers like in the `SSSE3` implementation, and then reverse the two 128-bit lanes themselves with whatever cross-lane arithmetic that _is_ available.
+The implementation can go even further to work with the even larger 256-bit registers that the `AVX/AVX2` extension provides and reverse *32 byte chunks* at a time. Implementation is very similar to the `SSSE3` one: load in *unaligned* data into a 256-bit register using the `__m256i` type. The issue with `AVX/AVX2` is that the `256-bit` register is actually two individual `128-bit` _lanes_ being operated in parallel as one larger `256-bit` register and overlaps in functionality with the `SSE` register almost as an additional layer of abstraction added upon `SSE`. Now here's where things get tricky, there is no `_mm256_shuffle_epi8` instruction that works like we think it would. Since it's just operating on two 128-bit lanes in parallel, `AVX/AVX2` instructions introduces a limitation in which some cross-lane arithmetic requires special cross-lane attention. Some instructions will accept 256-bit `AVX` registers but only actually operates upon 128-bit lanes. The trick here is that rather than trying to verse a 256-bit register atomically all in one go, instead reverse the bytes within the two 128-bit lanes, as if shuffling two 128-bit registers like in the `SSSE3` implementation, and then reverse the two 128-bit lanes themselves with whatever cross-lane arithmetic that _is_ available. Note that `AVX2` requires the gcc compile flag `-mavx2`.
 
 [_mm256_shuffle_epi8](https://software.intel.com/sites/landingpage/IntrinsicsGuide/#techs=AVX,AVX2&text=shuffle&expand=4726) is an `AVX2` instruction that shuffles the 128-bit lanes much like the `SSSE3` intrinsic so this can be taken care of first.
 
@@ -504,27 +504,28 @@ A speedup of up to _**x31**_!
 
 # AVX512
 
-`AVX512` is particularly rare out in the commercial world. Even so, we can take the algorithm that much more of a step forward and operate upon massive 512-bit bit registers. This will allow us to swap `64` bytes of data at once. At the moment, C and C++ compiler implementations of the `AVX512` instruction set are spotty at best. There is the benefit of the [_mm512_permutexvar_epi8](https://software.intel.com/sites/landingpage/IntrinsicsGuide/#=undefined&avx512techs=AVX512F,AVX512BW,AVX512CD,AVX512DQ,AVX512ER,AVX512IFMA52,AVX512PF,AVX512VBMI,AVX512VL&expand=4726,4038,4594,4594,4038&text=_mm512_permutexvar_epi8) instruction that will allow us to shuffle the 512-bit register with 8-bit indexes though there is not a confident implementation of [_mm512_set_epi8](https://software.intel.com/sites/landingpage/IntrinsicsGuide/#=undefined&avx512techs=AVX512F,AVX512BW,AVX512CD,AVX512DQ,AVX512ER,AVX512IFMA52,AVX512PF,AVX512VBMI,AVX512VL&expand=4726,4038,4594,4594&text=_mm512_set_epi8) to be found in MSVC or GCC. There is [_mm512_set_epi32](https://software.intel.com/sites/landingpage/IntrinsicsGuide/#=undefined&avx512techs=AVX512F,AVX512BW,AVX512CD,AVX512DQ,AVX512ER,AVX512IFMA52,AVX512PF,AVX512VBMI,AVX512VL&expand=4726,4038,4594,4594,4038,4587&text=_mm512_set_epi32) which will require generation of the `ShuffleRev` constant to use 32-bit integers rather than 8-bit integers.
+`AVX512` is particularly rare out in the commercial world. Even so, we can take the algorithm that much more of a step forward and operate upon massive 512-bit bit registers. This will allow us to swap `64` bytes of data at once. At the moment, C and C++ compiler implementations of the `AVX512` instruction set are spotty at best. There is the benefit of the [_mm512_shuffle_epi8](https://software.intel.com/sites/landingpage/IntrinsicsGuide/#expand=4729&text=_mm512_shuffle_epi8) instruction that will allow us to shuffle the bytes of the four 128-lane registers within the 512-bit register with 8-bit indexes though there is not a confident implementation of [_mm512_set_epi8](https://software.intel.com/sites/landingpage/IntrinsicsGuide/#=undefined&avx512techs=AVX512F,AVX512BW,AVX512CD,AVX512DQ,AVX512ER,AVX512IFMA52,AVX512PF,AVX512VBMI,AVX512VL&expand=4726,4038,4594,4594&text=_mm512_set_epi8) to be found in MSVC or GCC. There is [_mm512_set_epi32](https://software.intel.com/sites/landingpage/IntrinsicsGuide/#=undefined&avx512techs=AVX512F,AVX512BW,AVX512CD,AVX512DQ,AVX512ER,AVX512IFMA52,AVX512PF,AVX512VBMI,AVX512VL&expand=4726,4038,4594,4594,4038,4587&text=_mm512_set_epi32) which will require generation of the `ShuffleRev` constant to use 32-bit integers rather than 8-bit integers. After the initial `_mm512_shuffle_epi8` the four lanes still must be reversed due to the need for cross-lane arithmetic so an additional [_mm512_permutexvar_epi64](https://software.intel.com/sites/landingpage/IntrinsicsGuide/#expand=4726,4594,4729,3972,4029,4029,3930,4729,3930,4029,4589,4029,4029&avx512techs=AVX512F,AVX512BW&text=_mm512_permutexvar_epi64) is needed to truely complete the reversal. This is similar to what had to be done for the `AVX2` implementation above. Note that `AVX512` requires the gcc flag `-mavx512bw` for `AVX512BW` which subsequently includes `AVX512F`.
+
+`AVX512` is not a set-in-stone implementation of instruction sets though. `AVX512` has different subsets which may or may not be implemented for a specified processor. For example there is `AVX512CD` for conflict detection and `AVX512ER` for exponential and reciprocal instructions though ALL implementations of `AVX512` _require_ that `AVX512F`(AVX-512 Foundation) be implemented. `_mm512_shuffle_epi8` is an instruction implemented by the `AVX512BW` subset which adds **B**yte and **W**ord operations while `_mm512_setepi32` and `_mm512_permutexvar_epi64` are `AVX512F` so `_mm512_shuffle_epi8` is the only "stretch" requirement involved here. `AVX512BW` is currently supported by the current Skylake Enthusiast processors and is planned for the future Cannonlake processors. For reference, a current map of `AVX512` subset implementations(as of September 3, 2017):
+
+![](images/avx512-cpus.png)
 
 ```cpp
-// Coulld have done:
+// Could have done:
 const __m512i ShuffleRev = _mm512_set_epi8(
 	0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15,
-	16,17, 18, 19, 20, 21, 22, 23, 24, 25, 26, 27, 28, 29, 30, 31,
-	32, 33, 34, 35, 36, 37, 38, 39, 40, 41, 42, 43, 44, 45, 46, 47,
-	48, 49, 50, 51, 52, 53, 54, 55, 56, 57, 58, 59, 60, 61, 62, 63
+	0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15,
+	0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15,
+	0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15
 );
 // but instead have to do the more awkward:
+
 const __m512i ShuffleRev = _mm512_set_epi32(
-	0x00010203, 0x04050607, 0x08090a0b, 0x0c0d0e0f,
-	...
+	0x00010203, 0x4050607, 0x8090a0b, 0xc0d0e0f,
+	0x00010203, 0x4050607, 0x8090a0b, 0xc0d0e0f,
+	0x00010203, 0x4050607, 0x8090a0b, 0xc0d0e0f,
+	0x00010203, 0x4050607, 0x8090a0b, 0xc0d0e0f
 );
-```
-
-This can be done manually or generated with a quick python one-liner:
-
-```python
-", ".join([hex(word[3] | word[2] << 8 | word[1] << 16 | word[0] << 24) for word in [(idx,idx+1,idx+2,idx+3) for idx in range(0,64,4)]])
 ```
 
 The full `AVX512` implementation:
@@ -533,17 +534,19 @@ The full `AVX512` implementation:
 ...
 	for( std::size_t j = i; j < ((Count / 2) / 64); ++j )
 	{
-		// no _mm512_set_epi8 despite intel pretending there is
-		// _mm512_set_epi32 for now
-
-		// Quick python script to generate this array
-		//", ".join([hex(word[3] | word[2] << 8 | word[1] << 16 | word[0] << 24) for word in [(idx,idx+1,idx+2,idx+3) for idx in range(0,64,4)]])
-		const __m512i ShuffleRev = _mm512_set_epi32(
-			0x00010203, 0x04050607, 0x08090a0b, 0x0c0d0e0f,
-			0x10111213, 0x14151617, 0x18191a1b, 0x1c1d1e1f,
-			0x20212223, 0x24252627, 0x28292a2b, 0x2c2d2e2f,
-			0x30313233, 0x34353637, 0x38393a3b,	0x3c3d3e3f
+		// Reverses the 16 bytes of the four  128-bit lanes in a 512-bit register
+		const __m512i ShuffleRev8 = _mm512_set_epi32(
+			0x00010203, 0x4050607, 0x8090a0b, 0xc0d0e0f,
+			0x00010203, 0x4050607, 0x8090a0b, 0xc0d0e0f,
+			0x00010203, 0x4050607, 0x8090a0b, 0xc0d0e0f,
+			0x00010203, 0x4050607, 0x8090a0b, 0xc0d0e0f
 		);
+
+		// Reverses the four 128-bit lanes of a 512-bit register
+		const __m512i ShuffleRev64 = _mm512_set_epi64(
+			1,0,3,2,5,4,7,6
+		);
+
 		// Load 64 elements at once into one 64-byte register
 		__m512i Lower = _mm512_loadu_si512(
 			reinterpret_cast<__m512i*>(&Array8[i])
@@ -552,9 +555,13 @@ The full `AVX512` implementation:
 			reinterpret_cast<__m512i*>(&Array8[Count - i - 64])
 		);
 
-		// Reverse the byte order of our 64-byte vectors
-		Lower = _mm512_permutexvar_epi8(ShuffleRev,Lower);
-		Upper = _mm512_permutexvar_epi8(ShuffleRev,Upper);
+		// Reverse the byte order of each 128-bit lane
+		Lower = _mm512_shuffle_epi8(Lower,ShuffleRev8);
+		Upper = _mm512_shuffle_epi8(Upper,ShuffleRev8);
+
+		// Reverse the four 128-bit lanes in the 512-bit register
+		Lower = _mm512_permutexvar_epi64(ShuffleRev64,Lower);
+		Upper = _mm512_permutexvar_epi64(ShuffleRev64,Upper);
 
 		// Place them at their swapped position
 		_mm512_storeu_si512(
@@ -588,47 +595,30 @@ Reversed:
 The `-mix` will cause the software development emulator to audit the execution of the program and the instructions it encounters into a `sde-mix-out.txt` file. This file is massive by default so `-no_shared_libs` removes the auditing of shared libraries(such as the standard libraries) from the report. With this the execution summery of `qreverse<1>` can be examined:
 
 ```
-# $dynamic-counts-for-function: void qReverse<1ul>(void*, unsigned long)  IMG: Verify1 at [0x496f10d0a0, 0x496f10ddde)   1.347%
+# $dynamic-counts-for-function: void qReverse<1ul>(void*, unsigned long)  IMG: /media/Alpha/Programming/qreverse/build/Verify1 at [0x4e1ffd40a0, 0x4e1ffd4e3e)   1.442%
 #
 # TID 0
 #       opcode                 count
 #
 ...
-*isa-ext-BASE                                                         65
-*isa-set-AVX512F_512                                                   3
-*isa-set-AVX512_VBMI_512                                               2
+*isa-set-AVX512BW_512                                                  4
+*isa-set-AVX512F_512                                                   6
 ...
-*category-AVX512_VBMI                                                  2
+*category-AVX512                                                       4
 ...
-*avx512                                                                5
-
+*avx512                                                               10
 ...
-
-ADD                                                                    1
-AND                                                                    1
-CMP                                                                    7
-JBE                                                                    4
-JMP                                                                    2
-JNB                                                                    2
-JNZ                                                                    1
-JZ                                                                     1
-LEA                                                                    3
-MOV                                                                   14
-NOP                                                                    1
-POP                                                                    7
-PUSH                                                                   8
-RET_NEAR                                                               1
-SHL                                                                    1
-SHR                                                                    9
-SUB                                                                    2
-VMOVDQA64                                                              1
-VMOVDQU64                                                              2
-VPERMB                                                                 2
-*total                                                                70
+...
+VMOVDQA64                                                              2  < Note these are called only twice which
+VMOVDQU64                                                              2    makes sense given a 128-byte array
+VMOVDQU8                                                               2    and only needing one AVX-512 swap
+VPERMQ                                                                 2
+VPSHUFB                                                                2
+*total                                                                75
 
 ```
 
-Not only is AVX512 verified to have ran and worked but the entire reversal of `128` elements took only `70` instructions in total.
+Not only are the `AVX512BW` instructions verified to have ran and worked but the entire reversal of `128` elements took only `75` instructions in total!
 
 Todo: `AVX512` hardware benchmarks
 

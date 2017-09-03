@@ -109,13 +109,10 @@ inline void qReverse<1>(void* Array, std::size_t Count)
 {
 	std::uint8_t* Array8 = reinterpret_cast<std::uint8_t*>(Array);
 	std::size_t i = 0;
-	// AVX-512BW
+	// AVX-512BW/F
 #if defined(__AVX512F__) && defined(__AVX512BW__)
 	for( std::size_t j = i; j < ((Count / 2) / 64); ++j )
 	{
-		// no _mm512_set_epi8 despite intel pretending there is
-		// _mm512_set_epi32 for now
-
 		// Reverses the 16 bytes of the four  128-bit lanes in a 512-bit register
 		const __m512i ShuffleRev8 = _mm512_set_epi32(
 			0x00010203, 0x4050607, 0x8090a0b, 0xc0d0e0f,
