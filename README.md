@@ -620,7 +620,34 @@ VPSHUFB                                                                2
 
 Not only are the `AVX512BW` instructions verified to have ran and worked but the entire reversal of `128` elements took only `75` instructions in total!
 
-Todo: `AVX512` hardware benchmarks
+I recently acquired an Intel i9-7900x `BX80673I97900X` which features a large portion of the `AVX512` subsets and is capable of providing some actual hardware benchmarks for this implementation.
+Here the benchmark is compiled using Visual Studio 2017 for x64-Release mode. 
+
+Element Count|std::reverse|qReverse|Speedup Factor
+---|---|---|---
+8|23 ns|26 ns|*0.885*
+16|30 ns|26 ns|**1.154**
+32|34 ns|28 ns|**1.214**
+64|43 ns|31 ns|**1.387**
+128|63 ns|29 ns|**2.172**
+256|101 ns|34 ns|**2.971**
+512|166 ns|32 ns|**5.188**
+1024|289 ns|33 ns|**8.758**
+100|61 ns|33 ns|**1.848**
+1000|282 ns|49 ns|**5.755**
+10000|3010 ns|109 ns|**27.615**
+100000|28380 ns|1394 ns|**20.359**
+1000000|252209 ns|16202 ns|**15.567**
+59|43 ns|31 ns|**1.387**
+79|52 ns|30 ns|**1.733**
+173|73 ns|31 ns|**2.355**
+6133|1769 ns|91 ns|**19.440**
+10177|2994 ns|113 ns|**26.496**
+25253|7726 ns|241 ns|**32.058**
+31391|9252 ns|279 ns|**33.161**
+50432|15203 ns|736 ns|**20.656**
+
+A plateau of speedups up to _**x33**_!
 
 # The "middle chunk" ( TODO )
 
