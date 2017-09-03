@@ -85,13 +85,13 @@ inline void qReverse(void* Array, std::size_t Count)
 		std::uint8_t u8[ElementSize];
 	};
 	ByteElement* ArrayN = reinterpret_cast<ByteElement*>(Array);
-	
+
 	// If compiler adds any padding/alignment bytes(and some do) then assert out
 	static_assert(
 		sizeof(ByteElement) == ElementSize,
 		"ByteElement is pad-aligned and does not match specified element size"
 	);
-	
+
 	// We're only iterating through half of the size of the Array
 	for( std::size_t i = 0; i < Count / 2; ++i )
 	{
@@ -109,21 +109,26 @@ inline void qReverse<1>(void* Array, std::size_t Count)
 {
 	std::uint8_t* Array8 = reinterpret_cast<std::uint8_t*>(Array);
 	std::size_t i = 0;
-	// AVX-512
-#if defined(__AVX512F__)
+	// AVX-512BW
+#if defined(__AVX512F__) && defined(__AVX512BW__)
 	for( std::size_t j = i; j < ((Count / 2) / 64); ++j )
 	{
 		// no _mm512_set_epi8 despite intel pretending there is
 		// _mm512_set_epi32 for now
 
-		// Quick python script to generate this array
-		//", ".join([hex(word[3] | word[2] << 8 | word[1] << 16 | word[0] << 24) for word in [(idx,idx+1,idx+2,idx+3) for idx in range(0,64,4)]])
-		const __m512i ShuffleRev = _mm512_set_epi32(
-			0x00010203, 0x04050607, 0x08090a0b, 0x0c0d0e0f,
-			0x10111213, 0x14151617, 0x18191a1b, 0x1c1d1e1f,
-			0x20212223, 0x24252627, 0x28292a2b, 0x2c2d2e2f,
-			0x30313233, 0x34353637, 0x38393a3b,	0x3c3d3e3f
+		// Reverses the 16 bytes of the four  128-bit lanes in a 512-bit register
+		const __m512i ShuffleRev8 = _mm512_set_epi32(
+			0x00010203, 0x4050607, 0x8090a0b, 0xc0d0e0f,
+			0x00010203, 0x4050607, 0x8090a0b, 0xc0d0e0f,
+			0x00010203, 0x4050607, 0x8090a0b, 0xc0d0e0f,
+			0x00010203, 0x4050607, 0x8090a0b, 0xc0d0e0f
 		);
+
+		// Reverses the four 128-bit lanes of a 512-bit register
+		const __m512i ShuffleRev64 = _mm512_set_epi64(
+			1,0,3,2,5,4,7,6
+		);
+
 		// Load 64 elements at once into one 64-byte register
 		__m512i Lower = _mm512_loadu_si512(
 			reinterpret_cast<__m512i*>(&Array8[i])
@@ -132,10 +137,13 @@ inline void qReverse<1>(void* Array, std::size_t Count)
 			reinterpret_cast<__m512i*>(&Array8[Count - i - 64])
 		);
 
-		// Reverse the byte order of our 64-byte vectors
-		// this is vbmi! not foundational!
-		Lower = _mm512_shuffle_epi8(Lower,ShuffleRev);
-		Upper = _mm512_shuffle_epi8(Upper,ShuffleRev);
+		// Reverse the byte order of each 128-bit lane
+		Lower = _mm512_shuffle_epi8(Lower,ShuffleRev8);
+		Upper = _mm512_shuffle_epi8(Upper,ShuffleRev8);
+
+		// Reverse the four 128-bit lanes in the 512-bit register
+		Lower = _mm512_permutexvar_epi64(ShuffleRev64,Lower);
+		Upper = _mm512_permutexvar_epi64(ShuffleRev64,Upper);
 
 		// Place them at their swapped position
 		_mm512_storeu_si512(
