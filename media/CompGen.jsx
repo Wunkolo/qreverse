@@ -274,7 +274,7 @@ function GenSwap() {
 			// Swap Lower
 			Lower.map(function (CurCell, i) {
 
-				var CellDelay = (1/12 * SwapDuration) * (i/Lower.length);
+				var CellDelay = (1 / 12 * SwapDuration) * (i / Lower.length);
 				// Move to register
 				CurCell.position.setValueAtTime(
 					PhaseIn,
@@ -304,6 +304,15 @@ function GenSwap() {
 						RegisterA.position.value
 						+ [(Alignment - (i % Alignment) - 1) * CellWidth, 0]
 					]
+				);
+				// Scale down sorted cells
+				CurCell.scale.setValueAtTime(
+					PhaseIn + 4 / 6 * SwapDuration,
+					[10, 10]
+				);
+				CurCell.scale.setValueAtTime(
+					PhaseIn + 5 / 6 * SwapDuration + CellDelay,
+					[10 * 2/3, 10 * 2/3]
 				);
 				// Move to end of array
 				CurCell.position.setValuesAtTimes(
@@ -337,13 +346,13 @@ function GenSwap() {
 					);
 					CurCell.position.setTemporalEaseAtKey(
 						i,
-						[new KeyframeEase(1/6,100)]
+						[new KeyframeEase(1 / 6, 100)]
 					);
 				}
 			});
 			// Swap Higher
 			Upper.map(function (CurCell, i) {
-				var CellDelay = (1/12 * SwapDuration) * (i/Lower.length);
+				var CellDelay = (1 / 12 * SwapDuration) * (i / Lower.length);
 				// Move to register
 				CurCell.position.setValueAtTime(
 					PhaseIn,
@@ -374,6 +383,15 @@ function GenSwap() {
 						RegisterB.position.value
 						+ [(Alignment - (i % Alignment) - 1) * CellWidth, 0]
 					]
+				);
+				// Scale down sorted cells
+				CurCell.scale.setValueAtTime(
+					PhaseIn + 4 / 6 * SwapDuration,
+					[10, 10]
+				);
+				CurCell.scale.setValueAtTime(
+					PhaseIn + 5 / 6 * SwapDuration + CellDelay,
+					[10 * 2/3, 10 * 2/3]
 				);
 				// Move to end of array
 				CurCell.position.setValuesAtTimes(
@@ -409,7 +427,7 @@ function GenSwap() {
 					);
 					CurCell.position.setTemporalEaseAtKey(
 						i,
-						[new KeyframeEase(1/6,100)]
+						[new KeyframeEase(1 / 6, 100)]
 					);
 				}
 			});
