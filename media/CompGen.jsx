@@ -1,19 +1,33 @@
 function GenSwap() {
 	/// Config
-	var Alignments = [8, 4, 2, 1];
-	var OpNames = ["bswap64", "bswap32", "bswap16", "Naïve"];
+	var Alignments = [
+		32,
+		16,
+		8,
+		4,
+		2,
+		1
+	];
+	var OpNames = [
+		"_mm256_shuffle_epi8",
+		"_mm_shuffle_epi8",
+		"bswap64",
+		"bswap32",
+		"bswap16",
+		"Naïve"
+	];
 
 	var Size = [540, 360];
-	var CellWidth = 24;
-	var CellColumns = 13;
-	var CellRows = 7;
+	var CellWidth = 16;
+	var CellColumns = 27;
+	var CellRows = 15;
 	var CellCount = CellColumns * CellRows;
-	var RegisterCellCount = 8;
+	var RegisterCellCount = 32;
 
-	var SwapDuration = 1.5;
+	var SwapDuration = 0.5;
 	var TotalSwaps = 0;
 	var RemainingSwaps = (CellCount / 2);
-	Alignments.sort().reverse().map(function (CurAlign, i) {
+	Alignments.slice().sort().reverse().map(function (CurAlign, i) {
 		TotalSwaps += Math.floor(RemainingSwaps / CurAlign);
 		RemainingSwaps %= CurAlign;
 	});
@@ -344,7 +358,7 @@ function GenSwap() {
 		}
 	}
 
-	Alignments.sort().reverse().map(function (CurAlign, i) {
+	Alignments.map(function (CurAlign, i) {
 		SwapPhase(CurAlign, OpNames[i]);
 	});
 }
