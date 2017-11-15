@@ -19,10 +19,11 @@ function GenSwap() {
 
 	var Size = [540, 480];
 	var CellWidth = 24;
-	var CellColumns = 9;
+	var CellColumns = 8;
 	var CellRows = 7;
 	var CellCount = CellColumns * CellRows;
 	var RegisterCellCount = 8;
+	var SortedScale = 2/3;
 
 	var SwapDuration = 3.0;
 	var TotalSwaps = 0;
@@ -80,6 +81,9 @@ function GenSwap() {
 			0
 		]];
 		LogLayer1.opacity.setValuesAtTimes(
+			Keys[0], Keys[1]
+		);
+		LogLayer2.opacity.setValuesAtTimes(
 			Keys[0], Keys[1]
 		);
 	}
@@ -227,6 +231,7 @@ function GenSwap() {
 		Size[1] / 2 - (CellRows * CellWidth) / 2 + CellWidth / 2
 	];
 
+	// Generate cells
 	var CellArray = [];
 	for (var CurRow = 0; CurRow < CellRows; ++CurRow) {
 		for (var CurCol = 0; CurCol < CellColumns; ++CurCol) {
@@ -245,6 +250,18 @@ function GenSwap() {
 				]);
 			CellArray.push(CurNull);
 		}
+	}
+
+	// If odd-numbered amount of cells, the middle-most element is already sorted
+	if( CellCount % 2 == 1 )
+	{
+		var MiddleCell = CellArray[ Math.floor(CellCount / 2)];
+		MiddleCell.scale.setValue(
+			[
+				MiddleCell.scale.value[0] * SortedScale,
+				MiddleCell.scale.value[1] * SortedScale,
+			]
+		);
 	}
 
 	var Index = 0;
@@ -308,11 +325,14 @@ function GenSwap() {
 				// Scale down sorted cells
 				CurCell.scale.setValueAtTime(
 					PhaseIn + 4 / 6 * SwapDuration,
-					[10, 10]
+					CurCell.scale.value
 				);
 				CurCell.scale.setValueAtTime(
 					PhaseIn + 5 / 6 * SwapDuration + CellDelay,
-					[10 * 2/3, 10 * 2/3]
+					[
+						CurCell.scale.value[0] * SortedScale,
+						CurCell.scale.value[1] * SortedScale,
+					]
 				);
 				// Move to end of array
 				CurCell.position.setValuesAtTimes(
@@ -387,11 +407,14 @@ function GenSwap() {
 				// Scale down sorted cells
 				CurCell.scale.setValueAtTime(
 					PhaseIn + 4 / 6 * SwapDuration,
-					[10, 10]
+					CurCell.scale.value
 				);
 				CurCell.scale.setValueAtTime(
 					PhaseIn + 5 / 6 * SwapDuration + CellDelay,
-					[10 * 2/3, 10 * 2/3]
+					[
+						CurCell.scale.value[0] * SortedScale, 
+						CurCell.scale.value[1] * SortedScale,
+					]
 				);
 				// Move to end of array
 				CurCell.position.setValuesAtTimes(
