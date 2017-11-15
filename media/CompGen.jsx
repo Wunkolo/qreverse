@@ -19,8 +19,8 @@ function GenSwap() {
 
 	var Size = [540, 480];
 	var CellWidth = 24;
-	var CellColumns = 8;
-	var CellRows = 7;
+	var CellColumns = 17;
+	var CellRows = 13;
 	var CellCount = CellColumns * CellRows;
 	var RegisterCellCount = 8;
 	var SortedScale = 2/3;
@@ -372,7 +372,7 @@ function GenSwap() {
 			});
 			// Swap Higher
 			Upper.map(function (CurCell, i) {
-				var CellDelay = (1 / 12 * SwapDuration) * (i / Lower.length);
+				var CellDelay = (1 / 12 * SwapDuration) * ((Alignment - i - 1) / Lower.length);
 				// Move to register
 				CurCell.position.setValueAtTime(
 					PhaseIn,
