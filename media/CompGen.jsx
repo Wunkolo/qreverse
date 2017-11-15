@@ -19,12 +19,12 @@ function GenSwap() {
 
 	var Size = [540, 480];
 	var CellWidth = 24;
-	var CellColumns = 23;
-	var CellRows = 9;
+	var CellColumns = 9;
+	var CellRows = 7;
 	var CellCount = CellColumns * CellRows;
 	var RegisterCellCount = 8;
 
-	var SwapDuration = 1.0;
+	var SwapDuration = 3.0;
 	var TotalSwaps = 0;
 	var RemainingSwaps = Math.floor(CellCount / 2);
 	Alignments.slice().sort().reverse().map(function (CurAlign, i) {
@@ -69,9 +69,9 @@ function GenSwap() {
 		LogProp2.setValueAtTime(Time, new TextDocument(Message));
 		var Keys = [[
 			Time,
-			Time + FadeTime * 1/9,
-			Time + FadeTime * 8/9,
-			Time + FadeTime 
+			Time + FadeTime * 1 / 9,
+			Time + FadeTime * 8 / 9,
+			Time + FadeTime
 		],
 		[
 			0,
@@ -80,7 +80,7 @@ function GenSwap() {
 			0
 		]];
 		LogLayer1.opacity.setValuesAtTimes(
-			Keys[0],Keys[1]
+			Keys[0], Keys[1]
 		);
 	}
 
@@ -273,15 +273,16 @@ function GenSwap() {
 
 			// Swap Lower
 			Lower.map(function (CurCell, i) {
+
+				var CellDelay = (1/12 * SwapDuration) * (i/Lower.length);
 				// Move to register
 				CurCell.position.setValueAtTime(
 					PhaseIn,
 					CurCell.position.value
 				)
-
 				CurCell.position.setValuesAtTimes(
 					[
-						PhaseIn + 1 / 6 * SwapDuration,
+						PhaseIn + 1 / 6 * SwapDuration + CellDelay,
 						PhaseIn + 2 / 6 * SwapDuration
 					],
 					[
@@ -307,7 +308,7 @@ function GenSwap() {
 				// Move to end of array
 				CurCell.position.setValuesAtTimes(
 					[
-						PhaseIn + 5 / 6 * SwapDuration,
+						PhaseIn + 5 / 6 * SwapDuration + CellDelay,
 						PhaseIn + 6 / 6 * SwapDuration
 					],
 					[
@@ -329,9 +330,20 @@ function GenSwap() {
 						]
 					]
 				);
+				for (var i = 1; i <= CurCell.position.numKeys; ++i) {
+					CurCell.position.setInterpolationTypeAtKey(i,
+						KeyframeInterpolationType.BEZIER,
+						KeyframeInterpolationType.BEZIER
+					);
+					CurCell.position.setTemporalEaseAtKey(
+						i,
+						[new KeyframeEase(1/6,100)]
+					);
+				}
 			});
 			// Swap Higher
 			Upper.map(function (CurCell, i) {
+				var CellDelay = (1/12 * SwapDuration) * (i/Lower.length);
 				// Move to register
 				CurCell.position.setValueAtTime(
 					PhaseIn,
@@ -339,7 +351,7 @@ function GenSwap() {
 				)
 				CurCell.position.setValuesAtTimes(
 					[
-						PhaseIn + 1 / 6 * SwapDuration,
+						PhaseIn + 1 / 6 * SwapDuration + CellDelay,
 						PhaseIn + 2 / 6 * SwapDuration,
 					],
 					[
@@ -366,7 +378,7 @@ function GenSwap() {
 				// Move to end of array
 				CurCell.position.setValuesAtTimes(
 					[
-						PhaseIn + 5 / 6 * SwapDuration,
+						PhaseIn + 5 / 6 * SwapDuration + CellDelay,
 						PhaseIn + 6 / 6 * SwapDuration
 					],
 					[
@@ -388,6 +400,18 @@ function GenSwap() {
 						]
 					]
 				);
+
+				// Smooth keys
+				for (var i = 1; i <= CurCell.position.numKeys; ++i) {
+					CurCell.position.setInterpolationTypeAtKey(i,
+						KeyframeInterpolationType.BEZIER,
+						KeyframeInterpolationType.BEZIER
+					);
+					CurCell.position.setTemporalEaseAtKey(
+						i,
+						[new KeyframeEase(1/6,100)]
+					);
+				}
 			});
 			++Phase;
 			Index += Alignment;
