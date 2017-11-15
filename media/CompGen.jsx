@@ -1,32 +1,32 @@
 function GenSwap() {
 	/// Config
 	var Alignments = [
-		32,
-		16,
+		//32,
+		//16,
 		8,
 		4,
 		2,
 		1
 	];
 	var OpNames = [
-		"_mm256_shuffle_epi8",
-		"_mm_shuffle_epi8",
+		//"_mm256_shuffle_epi8",
+		//"_mm_shuffle_epi8",
 		"bswap64",
 		"bswap32",
 		"bswap16",
 		"Naïve"
 	];
 
-	var Size = [540, 360];
-	var CellWidth = 16;
-	var CellColumns = 27;
-	var CellRows = 15;
+	var Size = [540, 480];
+	var CellWidth = 24;
+	var CellColumns = 23;
+	var CellRows = 9;
 	var CellCount = CellColumns * CellRows;
-	var RegisterCellCount = 32;
+	var RegisterCellCount = 8;
 
-	var SwapDuration = 0.5;
+	var SwapDuration = 1.0;
 	var TotalSwaps = 0;
-	var RemainingSwaps = (CellCount / 2);
+	var RemainingSwaps = Math.floor(CellCount / 2);
 	Alignments.slice().sort().reverse().map(function (CurAlign, i) {
 		TotalSwaps += Math.floor(RemainingSwaps / CurAlign);
 		RemainingSwaps %= CurAlign;
@@ -41,23 +41,40 @@ function GenSwap() {
 		Math.floor(Size[1]),
 		1,
 		SwapDuration * TotalSwaps,
-		50
+		25
 	);
-	CurComp.openInViewer();
 	CurComp.bgColor = [1, 1, 1];
-	var LogLayer = CurComp.layers.addText();
+	var LogLayer1 = CurComp.layers.addText();
+	var LogLayer2 = CurComp.layers.addText();
 
 	/// Log Text
-	LogLayer.name = "Log";
-	LogLayer.position.setValue([
-		Size[0] / 8,
-		Size[1] / 2
+	LogLayer1.name = "Log1";
+	LogLayer2.name = "Log2";
+	LogLayer1.position.setValue([
+		Size[0] / 2,
+		Size[1] * 1 / 16
 	]);
-	var LogProp = LogLayer.property("Text").property("Source Text");
-	LogProp.setValueAtTime(0, "...");
+	LogLayer2.position.setValue([
+		Size[0] / 2,
+		Size[1] * 15 / 16
+	]);
 
-	function Log(Message, Time) {
-		LogProp.setValueAtTime(Time, new TextDocument(Message));
+	var LogProp1 = LogLayer1.property("Text").property("Source Text");
+	LogProp1.setValueAtTime(0, "...");
+	var LogProp2 = LogLayer2.property("Text").property("Source Text");
+	LogProp2.setValueAtTime(0, "...");
+
+	function Log(Message, Time, FadeTime) {
+		LogProp1.setValueAtTime(Time, new TextDocument(Message));
+		LogProp2.setValueAtTime(Time, new TextDocument(Message));
+		LogLayer1.opacity.setValueAtTime(Time, 0);
+		LogLayer2.opacity.setValueAtTime(Time, 0);
+		LogLayer1.opacity.setValueAtTime(Time + FadeTime * 1/9, 100);
+		LogLayer2.opacity.setValueAtTime(Time + FadeTime * 1/9, 100);
+		LogLayer1.opacity.setValueAtTime(Time + FadeTime * 8/9, 100);
+		LogLayer2.opacity.setValueAtTime(Time + FadeTime * 8/9, 100);
+		LogLayer1.opacity.setValueAtTime(Time + FadeTime, 0);
+		LogLayer2.opacity.setValueAtTime(Time + FadeTime, 0);
 	}
 
 	/// Functions
@@ -245,7 +262,7 @@ function GenSwap() {
 				CellCount - Index
 			);
 
-			Log(OpName, PhaseIn);
+			Log(OpName, PhaseIn + 1 / 6 * SwapDuration, 5 / 6 * SwapDuration);
 
 			// Swap Lower
 			Lower.map(function (CurCell, i) {
@@ -361,6 +378,7 @@ function GenSwap() {
 	Alignments.map(function (CurAlign, i) {
 		SwapPhase(CurAlign, OpNames[i]);
 	});
+	CurComp.openInViewer();
 }
 
 GenSwap();
