@@ -67,14 +67,21 @@ function GenSwap() {
 	function Log(Message, Time, FadeTime) {
 		LogProp1.setValueAtTime(Time, new TextDocument(Message));
 		LogProp2.setValueAtTime(Time, new TextDocument(Message));
-		LogLayer1.opacity.setValueAtTime(Time, 0);
-		LogLayer2.opacity.setValueAtTime(Time, 0);
-		LogLayer1.opacity.setValueAtTime(Time + FadeTime * 1/9, 100);
-		LogLayer2.opacity.setValueAtTime(Time + FadeTime * 1/9, 100);
-		LogLayer1.opacity.setValueAtTime(Time + FadeTime * 8/9, 100);
-		LogLayer2.opacity.setValueAtTime(Time + FadeTime * 8/9, 100);
-		LogLayer1.opacity.setValueAtTime(Time + FadeTime, 0);
-		LogLayer2.opacity.setValueAtTime(Time + FadeTime, 0);
+		var Keys = [[
+			Time,
+			Time + FadeTime * 1/9,
+			Time + FadeTime * 8/9,
+			Time + FadeTime 
+		],
+		[
+			0,
+			100,
+			100,
+			0
+		]];
+		LogLayer1.opacity.setValuesAtTimes(
+			Keys[0],Keys[1]
+		);
 	}
 
 	/// Functions
@@ -271,49 +278,55 @@ function GenSwap() {
 					PhaseIn,
 					CurCell.position.value
 				)
-				CurCell.position.setValueAtTime(
-					PhaseIn + 1 / 6 * SwapDuration,
-					RegisterA.position.value
-					+ [(i % Alignment) * CellWidth, 0]
-				);
 
-				// Reverse in register
-				CurCell.position.setValueAtTime(
-					PhaseIn + 2 / 6 * SwapDuration,
-					RegisterA.position.value
-					+ [(i % Alignment) * CellWidth, 0]
-				);
-				CurCell.position.setValueAtTime(
-					PhaseIn + 3 / 6 * SwapDuration,
-					RegisterA.position.value
-					+ [(Alignment - (i % Alignment) - 1) * CellWidth, 0]
-				);
-				CurCell.position.setValueAtTime(
-					PhaseIn + 4 / 6 * SwapDuration,
-					RegisterA.position.value
-					+ [(Alignment - (i % Alignment) - 1) * CellWidth, 0]
-				);
-				// Move to end of array
-				CurCell.position.setValueAtTime(
-					PhaseIn + 5 / 6 * SwapDuration,
+				CurCell.position.setValuesAtTimes(
 					[
-						GridOff[0]
-						+ Math.floor((UpperIdx + (Alignment - i - 1)) % CellColumns)
-						* CellWidth,
-						GridOff[1]
-						+ Math.floor((UpperIdx + (Alignment - i - 1)) / CellColumns)
-						* CellWidth
+						PhaseIn + 1 / 6 * SwapDuration,
+						PhaseIn + 2 / 6 * SwapDuration
+					],
+					[
+						RegisterA.position.value
+						+ [(i % Alignment) * CellWidth, 0],
+						RegisterA.position.value
+						+ [(i % Alignment) * CellWidth, 0]
 					]
 				);
-				CurCell.position.setValueAtTime(
-					PhaseIn + 6 / 6 * SwapDuration,
+				// Reverse in register
+				CurCell.position.setValuesAtTimes(
 					[
-						GridOff[0]
-						+ Math.floor((UpperIdx + (Alignment - i - 1)) % CellColumns)
-						* CellWidth,
-						GridOff[1]
-						+ Math.floor((UpperIdx + (Alignment - i - 1)) / CellColumns)
-						* CellWidth
+						PhaseIn + 3 / 6 * SwapDuration,
+						PhaseIn + 4 / 6 * SwapDuration
+					],
+					[
+						RegisterA.position.value
+						+ [(Alignment - (i % Alignment) - 1) * CellWidth, 0],
+						RegisterA.position.value
+						+ [(Alignment - (i % Alignment) - 1) * CellWidth, 0]
+					]
+				);
+				// Move to end of array
+				CurCell.position.setValuesAtTimes(
+					[
+						PhaseIn + 5 / 6 * SwapDuration,
+						PhaseIn + 6 / 6 * SwapDuration
+					],
+					[
+						[
+							GridOff[0]
+							+ Math.floor((UpperIdx + (Alignment - i - 1)) % CellColumns)
+							* CellWidth,
+							GridOff[1]
+							+ Math.floor((UpperIdx + (Alignment - i - 1)) / CellColumns)
+							* CellWidth
+						],
+						[
+							GridOff[0]
+							+ Math.floor((UpperIdx + (Alignment - i - 1)) % CellColumns)
+							* CellWidth,
+							GridOff[1]
+							+ Math.floor((UpperIdx + (Alignment - i - 1)) / CellColumns)
+							* CellWidth
+						]
 					]
 				);
 			});
@@ -324,49 +337,55 @@ function GenSwap() {
 					PhaseIn,
 					CurCell.position.value
 				)
-				CurCell.position.setValueAtTime(
-					PhaseIn + 1 / 6 * SwapDuration,
-					RegisterB.position.value
-					+ [(i % Alignment) * CellWidth, 0]
+				CurCell.position.setValuesAtTimes(
+					[
+						PhaseIn + 1 / 6 * SwapDuration,
+						PhaseIn + 2 / 6 * SwapDuration,
+					],
+					[
+						RegisterB.position.value
+						+ [(i % Alignment) * CellWidth, 0],
+						RegisterB.position.value
+						+ [(i % Alignment) * CellWidth, 0]
+					]
 				);
 
 				// Reverse in register
-				CurCell.position.setValueAtTime(
-					PhaseIn + 2 / 6 * SwapDuration,
-					RegisterB.position.value
-					+ [(i % Alignment) * CellWidth, 0]
-				);
-				CurCell.position.setValueAtTime(
-					PhaseIn + 3 / 6 * SwapDuration,
-					RegisterB.position.value
-					+ [(Alignment - (i % Alignment) - 1) * CellWidth, 0]
-				);
-				CurCell.position.setValueAtTime(
-					PhaseIn + 4 / 6 * SwapDuration,
-					RegisterB.position.value
-					+ [(Alignment - (i % Alignment) - 1) * CellWidth, 0]
-				);
-				// Move to end of array
-				CurCell.position.setValueAtTime(
-					PhaseIn + 5 / 6 * SwapDuration,
+				CurCell.position.setValuesAtTimes(
 					[
-						GridOff[0]
-						+ Math.floor((LowerIdx + (Alignment - i - 1)) % CellColumns)
-						* CellWidth,
-						GridOff[1]
-						+ Math.floor((LowerIdx + (Alignment - i - 1)) / CellColumns)
-						* CellWidth
+						PhaseIn + 3 / 6 * SwapDuration,
+						PhaseIn + 4 / 6 * SwapDuration
+					],
+					[
+						RegisterB.position.value
+						+ [(Alignment - (i % Alignment) - 1) * CellWidth, 0],
+						RegisterB.position.value
+						+ [(Alignment - (i % Alignment) - 1) * CellWidth, 0]
 					]
 				);
-				CurCell.position.setValueAtTime(
-					PhaseIn + 6 / 6 * SwapDuration,
+				// Move to end of array
+				CurCell.position.setValuesAtTimes(
 					[
-						GridOff[0]
-						+ Math.floor((LowerIdx + (Alignment - i - 1)) % CellColumns)
-						* CellWidth,
-						GridOff[1]
-						+ Math.floor((LowerIdx + (Alignment - i - 1)) / CellColumns)
-						* CellWidth
+						PhaseIn + 5 / 6 * SwapDuration,
+						PhaseIn + 6 / 6 * SwapDuration
+					],
+					[
+						[
+							GridOff[0]
+							+ Math.floor((LowerIdx + (Alignment - i - 1)) % CellColumns)
+							* CellWidth,
+							GridOff[1]
+							+ Math.floor((LowerIdx + (Alignment - i - 1)) / CellColumns)
+							* CellWidth
+						],
+						[
+							GridOff[0]
+							+ Math.floor((LowerIdx + (Alignment - i - 1)) % CellColumns)
+							* CellWidth,
+							GridOff[1]
+							+ Math.floor((LowerIdx + (Alignment - i - 1)) / CellColumns)
+							* CellWidth
+						]
 					]
 				);
 			});
