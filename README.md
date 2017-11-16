@@ -446,14 +446,14 @@ Speedups of up to _**x20**_!.. but this is lower than the `bswap` version which 
 
 # AVX2
 
-The implementation can go even further to work with the even larger 256-bit registers that the `AVX/AVX2` extension provides and reverse *32 byte chunks* at a time. Implementation is very similar to the `SSSE3` one: load in *unaligned* data into a 256-bit register using the `__m256i` type. The issue with `AVX/AVX2` is that the `256-bit` register is actually two individual `128-bit` _lanes_ being operated in parallel as one larger `256-bit` register and overlaps in functionality with the `SSE` register almost as an additional layer of abstraction added upon `SSE`. Now here's where things get tricky, there is no `_mm256_shuffle_epi8` instruction that works like we think it would. Since it's just operating on two 128-bit lanes in parallel, `AVX/AVX2` instructions introduces a limitation in which some cross-lane arithmetic requires special cross-lane attention. Some instructions will accept 256-bit `AVX` registers but only actually operates upon 128-bit lanes. The trick here is that rather than trying to verse a 256-bit register atomically all in one go, instead reverse the bytes within the two 128-bit lanes, as if shuffling two 128-bit registers like in the `SSSE3` implementation, and then reverse the two 128-bit lanes themselves with whatever cross-lane arithmetic that _is_ available. Note that `AVX2` requires the gcc compile flag `-mavx2`.
+The implementation can go even further to work with the even larger 256-bit registers that the `AVX/AVX2` extension provides and reverse *32 byte chunks* at a time. The implementation is very similar to the `SSSE3` one: load in *unaligned* data into a 256-bit register using the `__m256i` type. The issue with `AVX/AVX2` is that the `256-bit` register is actually two individual `128-bit` _lanes_ being operated in parallel as one larger `256-bit` register and overlaps in functionality with the `SSE` register almost as an additional layer of abstraction added upon `SSE`. Now here's where things get tricky, there is no `_mm256_shuffle_epi8` instruction that works like we think it would. Since it's just operating on two 128-bit lanes in parallel, `AVX/AVX2` instructions introduces a limitation in which some cross-lane arithmetic requires special cross-lane attention. Some instructions will accept 256-bit `AVX` registers but only actually operates upon 128-bit lanes. The trick here is that rather than trying to reverse a 256-bit register atomically in one go, instead reverse the bytes within the two 128-bit lanes, as if shuffling two 128-bit registers like in the `SSSE3` implementation, and then reverse the two 128-bit lanes themselves with whatever cross-lane arithmetic that _is_ available in `AVX/AVX2`. Note that `AVX2` requires the gcc compile flag `-mavx2`.
 
-[_mm256_shuffle_epi8](https://software.intel.com/sites/landingpage/IntrinsicsGuide/#techs=AVX,AVX2&text=shuffle&expand=4726) is an `AVX2` instruction that shuffles the 128-bit lanes much like the `SSSE3` intrinsic so this can be taken care of first.
+[_mm256_shuffle_epi8](https://software.intel.com/sites/landingpage/IntrinsicsGuide/#techs=AVX,AVX2&text=shuffle&expand=4726) is an `AVX2` instruction that shuffles the two 128-bit lanes of the 256-bit register much like the `SSSE3` intrinsic so this can be taken care of first.
 
 ```cpp
 const __m256i ShuffleRev = _mm256_set_epi8(
-	0, 1, 2, 3, 4, 5, 6, 7, 8, 9,10,11,12,13,14,15,
-	0, 1, 2, 3, 4, 5, 6, 7, 8, 9,10,11,12,13,14,15
+	0, 1, 2, 3, 4, 5, 6, 7, 8, 9,10,11,12,13,14,15, // first 128-bit lane
+	0, 1, 2, 3, 4, 5, 6, 7, 8, 9,10,11,12,13,14,15  // second 128-bit lane
 );
 // Load 32 elements at once into one 32-byte register
 __m256i Lower = _mm256_loadu_si256(
@@ -468,11 +468,13 @@ Lower = _mm256_shuffle_epi8(Lower,ShuffleRev);
 Upper = _mm256_shuffle_epi8(Upper,ShuffleRev);
 ```
 
-[_mm256_permute2x128_si256](https://software.intel.com/sites/landingpage/IntrinsicsGuide/#techs=AVX,AVX2&text=shuffle&expand=3896) is another `AVX2` instruction that permutes the 128-bit lanes of two 256-bit registers:
+So in the large 256-bit register, the two 128-bit lanes are now reversed, but now the 128-bit lanes themselves must be reversed:
+
+[_mm256_permute2x128_si256](https://software.intel.com/en-us/node/524015) is another `AVX2` instruction that permutes the 128-bit lanes of two 256-bit registers:
 
 ![](/images/_mm256_permute2x128_si256.jpg)
 
-Given two big 256-bit registers and an 8-byte immediate value it can select how the new 256-bit vector is going to be built. Pass in the same variable for both of the registers and "pick" from to simulate a big 128-bit cross-lane swap. This is pretty much the same algorithm as the "generic" `Swap64`/`Swap32`/`Swap16` functions above.
+Given two big 256-bit vectors and an 8-byte immediate value it can select how the new 256-bit vector it builds is going to be assembled. Pass in the same variable for both of the arguments and "picking" from them as if they were just 2-element arrays of 16-byte elements can simulate a big 128-bit cross-lane swap(think of it like `__m128i SomeAVXRegister[2]` ). In a way, this is also a big 128-bit "rotate" if you can visualize it.
 
 ```cpp
 ...
@@ -490,10 +492,11 @@ for( std::size_t j = i; j < ((Count / 2) / 32); ++j )
 		reinterpret_cast<__m256i*>(&Array8[Count - i - 32])
 	);
 
-	// Reverse the byte order of our 32-byte vectors
+	// Reverse the bytes inside each of the two 16-byte lanes
 	Lower = _mm256_shuffle_epi8(Lower,ShuffleRev);
 	Upper = _mm256_shuffle_epi8(Upper,ShuffleRev);
 
+	// Reverse the order of the 16-byte lanes
 	Lower = _mm256_permute2x128_si256(Lower,Lower,1);
 	Upper = _mm256_permute2x128_si256(Upper,Upper,1);
 
