@@ -85,7 +85,7 @@ inline void qReverse(void* Array, std::size_t Count)
 }
 ```
 
-Emitted assembly for: `auto Reverse8 = qReverse<1>;` in gcc is:
+Emitted assembly for: `auto Reverse8 = qReverse<1>;` from gcc is:
 ```cpp
 void qReverse<1ul>(void*, unsigned long):
   mov rcx, rsi
@@ -111,9 +111,9 @@ void qReverse<1ul>(void*, unsigned long):
 
 **From here it gets better!**
 
-This "plain ol data" assumption can be made for lots of different types of data. Most usages of `struct` are intended to be treated as "bags of data" and do not have the limitation of additional memory-movement logic for copying or swapping since they are intended only to communicate a structure of interpretation of bytes. The more obvious case-study can also be having an array of `chars` found in an ASCII `string` or maybe a row of `uint32_t` pixel data. **From this point on let's just assume that the sequence of data we are dealing with are to be these "bags of data" instances** that do not involve any kind of `operator=` or `Foo (const Foo&)` overhead so the data may be safely interpreted as literal bytes, think `memcpy`-like.
+This "plain ol data" assumption can be made for lots of different types of data. Most usages of `struct` are intended to be treated as "bags of data" and do not have the limitation of additional memory-movement logic for copying or swapping since they are intended only to communicate a structure of interpretation of bytes. The more obvious case-study can also be having an array of `chars` found in an ASCII `string` or maybe a row of `uint32_t` pixel data. **From this point on assume that the array of data we are dealing with are to be these "bags of data" instances** that do not involve any kind of `operator=` or `Foo (const Foo&)` type of overhead logic so the data may be safely interpreted strictly as bytes, think `memcpy`-like.
 
-Most of us are running 64-bit or 32-bit machines or have register sizes that are easily much bigger than just 1 byte(the animation above had register sizes that are 4 bytes, which is the size of a single 32-bit register). An observation is that we can speed this up is by loading in a full register-sized chunk of bytes, flipping this chunk of bytes within the register, and then placing it on the other end! Swapping all the bytes in the registers is a popular operation in networking called an `endian swap` and x86 happens to have just the instruction to do this!
+Most of the market are running 64-bit or 32-bit machines or have register sizes that are easily much bigger than just 1 byte(the animation above had register sizes that are 4 bytes, which is the size of a single 32-bit register). An observation is that we can speed this up is by loading in a full register-sized chunk of bytes, flipping this chunk of bytes within the register, and then placing it on the other end! Swapping all the bytes in the registers is a popular operation in networking called an `endian swap` and x86 happens to have just the instruction to do this!
 
 # bswap
 
@@ -167,7 +167,7 @@ inline std::uint16_t Swap16(std::uint16_t x)
 }
 ```
 
-Most compilers are able to detect when an in-register endian-swap is being done like above and will emit `bswap` automatically or a similar intrinsic for your target architecture(The ARM architecture has the `rev` instruction for **armv6** or newer). Note also that `bswap16` is basically just a 16-bit rotate of 1 byte aka a `rol` or `ror` instruction.
+Most compilers are able to detect when an in-register endian-swap is being done like above and will emit `bswap` automatically or a similar intrinsic for your target architecture(The ARM architecture has the `rev` instruction for **armv6** or newer). Note also that `bswap16` is basically just a 16-bit rotate of 1 byte which is the `rol` or `ror` instruction.
 
 x86_64 (gcc):
 ```
@@ -217,22 +217,32 @@ Swap16(unsigned short):
 ```
 
 
-Using 32-bit `bswap`s, the algorithm can take a 4-byte _chunk_ of bytes from either end into registers, `bswap` the register, and then place the reversed _chunks_ at the opposite ends. As the algorithm gets closer to the center it can use smaller 16-bit swaps(aka a 16-bit rotate) should it encounter 2-byte chunks.
+Using 32-bit `bswap`s, the algorithm can take a 4-byte _chunk_ of bytes from either end into registers, `bswap` the register, and then place the reversed _chunks_ at the opposite ends. As the algorithm gets closer to the center it can use smaller 16-bit swaps(aka a 16-bit rotate) should it encounter 2-byte chunks and eventually do serial swaps to anything left over.
 
 ![](/images/Swap32.gif)
 
-and this of course can be expanded into a 64-bit `bswap` allowing for even larger chunks to be reversed at once:
+and this of course can be expanded into a 64-bit `bswap` on a 64-bit architecture allowing for even larger chunks to be reversed at once. Once again, first exhaust as many 8-byte swaps, as possible, then do the 4-byte swaps, then the two-2byte swaps, and finally fallback onto the serial 1-byte swaps if we have to:
 
 ![](/images/Swap64.gif)
 
-Given an array of `11` bytes to be reversed: divide the array size by two to get the number of _single-element_ swaps to do(using integer arithmetic): `11/2 = 5`. So `5` single-element swaps are needed that we would have to do at either end of our split array. Now that there is a way to do `4` element chunks at once too, integer-divide this result `5` again by `4` to know how many _four-element_ swaps needed(`5/4 = 1`). So only one `bswap`-swap and one `naive`-swap is needed to fully reverse an 11-element array.
+Given an array of `11` bytes to be reversed(odd number, so the middle byte stays the same), divide the array size by two to get the number of _single-element_ swaps to do(using whole-integer arithmetic):
+
+> `11 / 2 = 5`
+
+So `5` single-element serial swaps are needed to reverse this array. Now that there is a way to do `4` element chunks at once too, integer-divide this result `5` again by `4` to know how many _four-element_ swaps needed. The remainder of this division is the number of serial swaps still needed once all the four-element swaps have been exhausted:
+
+> `5 / 4 = 1`
+> 
+> `5 % 4 = 1`
+
+So only one 4-byte `bswap`-swap and one `naive`-swap is needed to fully reverse an 11-element array. Now the 1-byte qReverse template specialization can be added.
 
 ```cpp
 // Reverse an array of 1-byte elements(such as std::uint8_t)
 
 // A specialization of the above implementation for 1-byte elements
 // Does not call assignment or copy overloads
-// Accelerated using - 32-bit bswap instruction
+// Accelerated using - 64,32 and 16 bit bswap instructions
 template<>
 inline void qReverse<1>(void* Array, std::size_t Count)
 {
@@ -339,9 +349,9 @@ And so across the board there are speedups up to _**x27!**_ before dipping down 
 
 # SIMD
 
-The `bswap` instruction can reverse the byte-order of `2`, `4`, or `8` bytes, but several x86 extensions later and now it is possible to swap the byte order of `16`, `32`, even `64` bytes all at once through the use of `SIMD`. `SIMD` stands for *Single Instruction Multiple Data* and allows operation upon multiple lanes of data in parallel using only a single instruction. Much like `bswap` which atomically reverses all four bytes in a register, `SIMD` provides an entire instruction set of arithmetic that allows manipulation of multiple instances of data at once using a single instruction in parallel. These chunks of data that are operated upon tend to be called `vectors` of data. Multiple bytes of data can then be elevated into a `vector` register to reverse its order and place it on the opposite end similarly to our `bswap` implementation but with even larger chunks.
+The `bswap` instruction can reverse the byte-order of `2`, `4`, or `8` bytes, but several x86 extensions later and now it is possible to swap the byte order of `16`, `32`, even `64` bytes all at once through the use of `SIMD`. `SIMD` stands for *Single Instruction Multiple Data* and allows operation upon multiple lanes of data in parallel using only a single instruction. Much like `bswap` which atomically reverses all four bytes in a register, `SIMD` provides an entire instruction set of arithmetic that allows manipulation of multiple instances of data at once in parallel using a single instruction. These chunks of data that are operated upon tend to be called `vectors` of data. Multiple bytes of data can then be elevated into a `vector` register to reverse its order and place it on the opposite end similarly to the `bswap` implementation but with even larger chunks.
 
-These additions to our algorithm will span higher-width chunks of bytes and will be append above our chain of `bswap` accelerated swap-loops. Over the years the x86 architecture has seen many generations of `SIMD` implementations, improvements, and instruciton sets:
+These additions to the algorithm will span higher-width chunks of bytes and will be append above the chain of `bswap` accelerated swap-loops to esure that the largest swaps are exhausted first before the smaller ones. Over the years the x86 architecture has seen many generations of `SIMD` implementations, improvements, and instruciton sets:
 
 - `MMX` (1996)
 - `SSE` (1999)
@@ -353,15 +363,15 @@ These additions to our algorithm will span higher-width chunks of bytes and will
 - `AVX2` (2013)
 - `AVX512` (2015)
 
-Some are kept around for compatibilities sake(`MMX`) and some are so recent, elusive, or so _vendor-specific_ to Intel or AMD that you're probably not likely to have a processor that features it(`SSE4a`). Some are very specific to enterprise hardware (such as `AVX512`) and are not likely to be on consumer hardware either.
+Some are kept around for compatibilities sake(`MMX`) and some are so recent, elusive, or so _vendor-specific_ to Intel or AMD that you're probably not likely to have a processor that features it(`SSE4a`). Some are very specific to enterprise hardware (such as `AVX512`) and are not likely to be on consumer hardware either. Other architectures may also have their own implementation of SIMD such as ARM's simd co-processor `NEON`.
 
-At the moment (July 21, 2017) the steam hardware survey states that **94.42%** of all CPUs on Steam feature `SSSE3`([store.steampowered.com/hwsurvey/](http://store.steampowered.com/hwsurvey/)). `SSSE3` is what will be used in a first step into `SIMD` territory. `SSSE3` in particular due to its `_mm_shuffle_epi8` instruction which lets us _shuffle_ bytes within our 128-bit register with relative ease for this implementation.
+At the moment (July 21, 2017) the steam hardware survey states that **94.42%** of all CPUs on Steam feature `SSSE3`([store.steampowered.com/hwsurvey/](http://store.steampowered.com/hwsurvey/)). `SSSE3` is what will be used as first step into higher `SIMD` territory. `SSSE3` in particular due to its `_mm_shuffle_epi8` instruction which lets allows the processor to _shuffle_ bytes within our 128-bit register with relative ease for illustrating this implementation.
 
 # SSSE3
 
 `SSE` stands for "Streaming SIMD Extensions" while `SSSE3` stands for "Supplemental Streaming SIMD Extensions 3" which is the _forth_ iteration of `SSE` technology. SSE introduces registers that allow for some `128` bit vector arithmetic. In C or C++ code the intent to use these registers is represented using types such as `__m128i` or `__m128d` which tell the compiler that any notion of _storage_ for these types should find their place within the 128-bit `SSE` registers when ever possible. Intrinsics such as `_mm_add_epi8` which will add two `__m128i`s together, and treat them as a _vector_ of 8-bit elements are now available within C and C++ code. The `i` and `d` found in `__m128i` and `__m128d` are to notify intent of the 128-register's interpretation as `i`nteger and `d`ouble respectively. `__m128` is assumed to be a vector of four `floats` by default. Since integer-data is what is being operated upon, the `__m128i` data type will be used as our data representation which gives access to the `_mm_shuffle_epi8` instruction. Note that `SSSE3` requires the gcc compile flag `-mssse3`.
 
-Now to draft a `SSSE3` byte swapping implementation and create a simulated 16-byte `bswap` using `SSSE3`. First, use `#include <tmmintrin.h>` in C or C++ code to expose every intrinsic from `MMX` up until `SSSE3`. Then, use the instrinsic `_mm_loadu_si128` to `load` an `u`naligned `s`igned `i`nteger vector of `128` bits into a `__m128i` variable. At a hardware level, _unaligned_ data and _aligned_ data interfaces with the memory hardware slightly differently and can provide for some further slight speedups should data-alignment be guarenteed. No assumption about the memory alignment of the data that we are operating upon can be assumed so unaligned memory access will be used. When done with the vector-arithmetic, call an equivalent `_mm_storeu_si128` which stores our vector data into an unaligned memory address. This `SSSE3` implementation will go right above the previous `Swap64` implementation, ensuring that our algorithm exhausts as much of the larger chunks as possible before resorting to the smaller ones:
+Now to draft a `SSSE3` byte swapping implementation and create a simulated 16-byte `bswap` using `SSSE3`. First, add `#include <tmmintrin.h>` in C or C++ code to expose every intrinsic from `MMX` up until `SSSE3` to your current source file. Then, use the instrinsic `_mm_loadu_si128` to `load` an `u`naligned `s`igned `i`nteger vector of `128` bits into a `__m128i` variable. At a hardware level, _unaligned_ data and _aligned_ data interfaces with the memory hardware slightly differently and can provide for some further slight speedups should data-alignment be guarenteed. No assumption can be made about the alignment of the pointers being passed to qReverse so unaligned memory access will be used. When done with the vector-arithmetic, call an equivalent `_mm_storeu_si128` which stores the vector data into an unaligned memory address. This `SSSE3` implementation will go right above the previous `Swap64` implementation, ensuring that our algorithm exhausts as much of the larger chunks as possible before resorting to the smaller ones:
 
 ```cpp
 #include <tmmintrin.h>
@@ -402,7 +412,7 @@ for( std::size_t j = i ; j < ( (Count/2) / 8 ) ; ++j)
 ...
 ```
 
-This basically implements a beefed-up 16-byte `bswap` using `SSSE3`. The heart of it all is the `_mm_shuffle_epi8` instruction which _shuffles_ the vector in the first argument according to the vector of byte-indices found in the second argument and returns this new _shuffled_ vector. A constant vector `ShuffleRev` is declared using `_mm_set_epi8` with each byte set to the index of where it should get its byte from(starting from least significant byte). You might read it as going from 0 to 15 in ascending order but this is actually indexing the bytes in reverse order which gives us a fully reversed 16-bit "chunk".
+This basically implements a beefed-up 16-byte `bswap` using `SSSE3`. The heart of it all is the `_mm_shuffle_epi8` instruction which _shuffles_ the vector in the first argument according to the vector of byte-indices found in the second argument and returns this new _shuffled_ vector. A constant vector `ShuffleRev` is declared using `_mm_set_epi8` with each byte set to the index of where it should get its byte from(starting from least significant byte). You might read it as going from 0 to 15 in ascending order but this is actually indexing the bytes in reverse order which gives a fully reversed 16-bit sub-array of bytes.
 
 ![](images/SSSE3.gif)
 
@@ -432,7 +442,7 @@ Element Count|std::reverse|qReverse|Speedup Factor
 31391|19867 ns|1839 ns|**10.803**
 50432|32826 ns|3170 ns|**10.355**
 
-Speedups of up to _**x20**_!.. but this is lower than the `bswap` version which reached up to _**x27**_? Maybe some prefetching might help this algorithm play nice with the cache(Todo)
+Speedups of up to _**x20**_!.. but this is lower than the `bswap` version which reached up to _**x27**_? Maybe some loop unrolling or some prefetching might help this algorithm play nice with the cache. In this implementation only two out of the available 8 registers are being used as well so there is some great room for improvement(Todo)
 
 # AVX2
 
