@@ -49,7 +49,7 @@ The emitted x86 of a `std::reverse` on an array of `std::uint8_t` will look some
  ``-> 0x000014c5 f3c3           ret
 ```
 
-An animation of the basic algorithm:
+For an odd-numbered amount of elements the middle piece is already exactly where it needs to be(the scaled down squares are array elements that are currently in their proper "reversed" position):
 
 ![](/images/Serial.gif)
 
