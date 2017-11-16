@@ -1,31 +1,17 @@
-function GenSwap() {
+function GenSwap(Config) {
 	/// Config
-	var Alignments = [
-		//32,
-		//16,
-		8,
-		4,
-		2,
-		1
-	];
-	var OpNames = [
-		//"_mm256_shuffle_epi8",
-		//"_mm_shuffle_epi8",
-		"bswap64",
-		"bswap32",
-		"bswap16",
-		"Naïve"
-	];
+	var Size = Config.Size;
+	var CellWidth = Config.CellWidth;
+	var CellColumns = Config.CellColumns;
+	var CellRows = Config.CellRows;
+	var RegisterCellCount = Config.RegisterCellCount;
+	var SwapDuration = Config.SwapDuration;
+	var Alignments = Config.Alignments;
+	var OpNames = Config.OpNames;
 
-	var Size = [540, 480];
-	var CellWidth = 24;
-	var CellColumns = 17;
-	var CellRows = 13;
+	// Constants
 	var CellCount = CellColumns * CellRows;
-	var RegisterCellCount = 8;
 	var SortedScale = 2/3;
-
-	var SwapDuration = 3.0;
 	var TotalSwaps = 0;
 	var RemainingSwaps = Math.floor(CellCount / 2);
 	Alignments.slice().sort().reverse().map(function (CurAlign, i) {
@@ -57,7 +43,7 @@ function GenSwap() {
 	]);
 	LogLayer2.position.setValue([
 		Size[0] / 2,
-		Size[1] * 15 / 16
+		Size[1] * 31 / 32
 	]);
 
 	var LogProp1 = LogLayer1.property("Text").property("Source Text");
@@ -459,10 +445,167 @@ function GenSwap() {
 		}
 	}
 
+	// Move text to top
+	LogLayer1.moveToBeginning();
+	LogLayer2.moveToBeginning();
+
 	Alignments.map(function (CurAlign, i) {
 		SwapPhase(CurAlign, OpNames[i]);
 	});
 	CurComp.openInViewer();
+	return CurComp;
 }
 
-GenSwap();
+// Serial
+var Serial = GenSwap({
+	Size : [520,360],
+	CellWidth : 48,
+	CellColumns : 9,
+	CellRows : 3,
+	RegisterCellCount : 4,
+	SwapDuration : 1.33,
+	Alignments : [
+		1
+	],
+	OpNames : [
+		""
+	]
+}).name = "Serial";
+
+// Swap16
+var Serial = GenSwap({
+	Size : [520,360],
+	CellWidth : 48,
+	CellColumns : 9,
+	CellRows : 3,
+	RegisterCellCount : 4,
+	SwapDuration : 2.6,
+	Alignments : [
+		2,
+		1
+	],
+	OpNames : [
+		"Swap16",
+		"Serial"
+	]
+}).name = "Swap16";
+
+// Swap32
+var Serial = GenSwap({
+	Size : [520,360],
+	CellWidth : 36,
+	CellColumns : 11,
+	CellRows : 5,
+	RegisterCellCount : 4,
+	SwapDuration : 1.5,
+	Alignments : [
+		4,
+		2,
+		1
+	],
+	OpNames : [
+		"Swap32",
+		"Swap16",
+		"Serial"
+	]
+}).name = "Swap32";
+
+// Swap64
+var Serial = GenSwap({
+	Size : [520,360],
+	CellWidth : 36,
+	CellColumns : 11,
+	CellRows : 5,
+	RegisterCellCount : 8,
+	SwapDuration : 1.5,
+	Alignments : [
+		8,
+		4,
+		2,
+		1
+	],
+	OpNames : [
+		"Swap64",
+		"Swap32",
+		"Swap16",
+		"Serial"
+	]
+}).name = "Swap64";
+
+// SSSE3
+var Serial = GenSwap({
+	Size : [520,360],
+	CellWidth : 24,
+	CellColumns : 15,
+	CellRows : 9,
+	RegisterCellCount : 16,
+	SwapDuration : 2.5,
+	Alignments : [
+		16,
+		8,
+		4,
+		2,
+		1
+	],
+	OpNames : [
+		"_mm_shuffle_epi8",
+		"Swap64",
+		"Swap32",
+		"Swap16",
+		"Serial"
+	]
+}).name = "SSSE3";
+
+// AVX2
+var Serial = GenSwap({
+	Size : [520,360],
+	CellWidth : 16,
+	CellColumns : 23,
+	CellRows : 11,
+	RegisterCellCount : 32,
+	SwapDuration : 2.5,
+	Alignments : [
+		32,
+		16,
+		8,
+		4,
+		2,
+		1
+	],
+	OpNames : [
+		"_mm256_shuffle_epi8/_mm256_permute2x128_si256",
+		"_mm_shuffle_epi8",
+		"Swap64",
+		"Swap32",
+		"Swap16",
+		"Serial"
+	]
+}).name = "AVX2";
+
+// AVX512
+var Serial = GenSwap({
+	Size : [520,360],
+	CellWidth : 8,
+	CellColumns : 27,
+	CellRows : 17,
+	RegisterCellCount : 64,
+	SwapDuration : 2.5,
+	Alignments : [
+		64,
+		32,
+		16,
+		8,
+		4,
+		2,
+		1
+	],
+	OpNames : [
+		"_mm512_shuffle_epi8/_mm512_permutexvar_epi64",
+		"_mm256_shuffle_epi8/_mm256_permute2x128_si256",
+		"_mm_shuffle_epi8",
+		"Swap64",
+		"Swap32",
+		"Swap16",
+		"Serial"
+	]
+}).name = "AVX512";
