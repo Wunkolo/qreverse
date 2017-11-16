@@ -4,7 +4,7 @@ qReverse is an architecture-accelerated array reversal algorithm intended as a p
 
 ---
 
-Array reversal algorithms that you typically see involves swapping both end of the array and working your way down to the middle-most element. C++ being type-aware treat array elements as objects and will call overloaded class operators such as `operator=` or a `copy by reference` constructor where available so an. Many implementetions of a "swap" function would use an intermediate temporary variable to make the exchange which would require a minimum of two calls to your object's `operator=` and at least one call to your object's `copy by reference` constructor. Some other novel algorithms use the xor-swap technique after making some assumptions about the data being swapped(integer-only, register-bound, no special overloads, etc). `std::swap` also allows a custom overload `swap` function to be used if it is within the same namespace as your type should you want to expose your overloaded method to C++'s standard algorithm library.
+Array reversal implementations typically involve swapping both ends of the array and working down to the middle-most elements. C++ being type-aware treats array elements as objects and will call overloaded class operators such as `operator=` or a `copy by reference` constructor where available. Many implementations of a "swap" function would use an intermediate temporary variable to make the exchange which would require a minimum of two calls to an object's `operator=` and at least one call to an object's `copy by reference` constructor. Some other novel algorithms use the xor-swap technique after making some assumptions about the data being swapped(integer-data, register-bound, no overrides, etc). `std::swap` also allows an overload of `swap` for a type to be used if it is within the same namespace as your type should you want to expose your overloaded method to C++'s standard algorithm library during the reversal
 
 ```c++
 // Taken from http://en.cppreference.com/w/cpp/algorithm/reverse
@@ -26,10 +26,13 @@ int main()
 }
 ```
 
-Should `std::reverse` be called upon a "plain ol data" type such as `std::uint8_t`(aka `unsigned char`) then it can safely assume that your data doesn't have any special assignment/copy overhead to worry about and can treat it as its raw bytes. It can make safe assumptions about your data to be able to optimize away any intermediate variables and keep the swap routine entirely register-bound and pretty efficient
+Note that for an odd-numbered amount of elements the middle-most element is already exactly where it needs to be and doesn't need to be moved.
 
-The emitted x86 of a `std::reverse` on an array of `std::uint8_t` will look something like this.
+![](/images/Serial.gif)
 
+Should `std::reverse` be called upon a "**P**lain **O**l **D**ata"(POD) type such as `std::uint8_t`(aka `unsigned char`) or a plain `struct` type then compilers can safely assume that your data doesn't have any special assignment/copy overrides to worry about and can treated as raw bytes. This assumption can allow for the compiler to optimize the reversal routine into something simple and much more `memcpy`-like.
+
+The emitted x86 of a `std::reverse` on an array of `std::uint8_t` generally looks something like this.
 
 ```
       ; std::reverse for std::uint8_t
@@ -37,8 +40,8 @@ The emitted x86 of a `std::reverse` on an array of `std::uint8_t` will look some
   ,=< 0x000014a3 7420           je 0x14c5
   |   0x000014a5 4883ee01       sub rsi, 1
   |   0x000014a9 4839f7         cmp rdi, rsi
- ,==< 0x000014ac 7317           jae 0x14c5                  
-.---> 0x000014ae 0fb607         movzx eax, byte [rdi] ; Load two bytes from
+ ,==< 0x000014ac 7317           jae 0x14c5
+.---> 0x000014ae 0fb607         movzx eax, byte [rdi] ; Load two bytes, one from
 |||   0x000014b1 0fb616         movzx edx, byte [rsi] ; each end.
 |||   0x000014b4 8817           mov byte [rdi], dl    ; Write them at opposite
 |||   0x000014b6 8806           mov byte [rsi], al    ; ends.
@@ -49,12 +52,9 @@ The emitted x86 of a `std::reverse` on an array of `std::uint8_t` will look some
  ``-> 0x000014c5 f3c3           ret
 ```
 
-For an odd-numbered amount of elements the middle piece is already exactly where it needs to be(the scaled down squares are array elements that are currently in their proper "reversed" position):
-
-![](/images/Serial.gif)
-
-Our own custom implementation of this algorithm to start us off:
-We'll template the element-size at compile-time and emit a pseudo-structure that fits this size in an attempt to keep this illustrative implementation as generic as possible for an element of _any_ size in bytes. By having the element-size be templated we can make specific template specializations for certain element-sizes while all other sizes fall-back to this naive algorithm. Having this done with a template allows the proper specialization to be instanced at compile-time rather than compare a runtime "element-size" argument against a list of available implementations.
+When making qReverse, the primary interface implements a templated algorithm that follows the same logic.
+The element-size at compile-time will be templated and emit a pseudo-structure that fits this exact size in an attempt to keep this illustrative implementation as generic as possible for an element of _any_ size in bytes. By having the element-size be templated it will be a lot easier to implement specializations for certain element-sizes while all other non-specialized element sizes fall-back to the serial algorithm.
+Doing this with a template allows only the proper specializations to be instanced at compile-time as opposed to comparing an element-size variable against a list of available implementations at run-time.
 
 ```cpp
 template< std::size_t ElementSize >
@@ -73,7 +73,7 @@ inline void qReverse(void* Array, std::size_t Count)
 		"ByteElement is pad-aligned and does not match specified element size"
 	);
 	
-	// We're only iterating through half of the size of the Array
+	// Only iterate through half of the size of the Array
 	for( std::size_t i = 0; i < Count / 2; ++i )
 	{
 		// Exchange the upper and lower element as we work our
@@ -85,9 +85,35 @@ inline void qReverse(void* Array, std::size_t Count)
 }
 ```
 
-**We can do better!** This "plain ol data" assumption can be made for lots of different types of data. Most usages of `struct` are intended to be treated as "bags of data" and do not have the limitation of additional memory-movement logic for copying or swapping since they are intended only to communicate a structure of interpretation of bytes. The more obvious case-study can also be having an array of `chars` found in an ASCII `string` or maybe a row of pixel data. **From this point on let's just assume that the sequence of data we are dealing with are to be these "bags of data" instances** that do not involve any kind of `operator=` or `Foo (const Foo&)` overhead so the data may be safely interpreted as literal bytes.
+Emitted assembly for: `auto Reverse8 = qReverse<1>;` in gcc is:
+```cpp
+void qReverse<1ul>(void*, unsigned long):
+  mov rcx, rsi
+  shr rcx
+  je .L1
+  lea rdx, [rsi-1]
+  lea rax, [rdi+rdx]
+  sub rdx, rcx
+  lea rdx, [rdi+rdx]
+.L3:
+  movzx ecx, BYTE PTR [rdi] ; Load bytes at each end
+  movzx esi, BYTE PTR [rax]
+  sub rax, 1                ; Move indexs "inwards"
+  add rdi, 1
+  mov BYTE PTR [rdi-1], sil ; Place them at the other end
+  mov BYTE PTR [rax+1], cl
+  cmp rax, rdx              ; Loop
+  jne .L3
+.L1:
+  rep ret
+```
 
-Most of us are running 64-bit or 32-bit machines or have register sizes that are easily much bigger than just 1 byte(the animation above had register sizes that are 8 bytes, which is the size of a single 64-bit register). One way we can speed this up is by loading in a full register-sized chunk of bytes, flipping this chunk of bytes within the register, and then placing it on the other end! Swapping all the bytes in the registers is a popular operation in networking called an `endian swap` and x86 happens to have just the instruction to do this!
+
+**From here it gets better!**
+
+This "plain ol data" assumption can be made for lots of different types of data. Most usages of `struct` are intended to be treated as "bags of data" and do not have the limitation of additional memory-movement logic for copying or swapping since they are intended only to communicate a structure of interpretation of bytes. The more obvious case-study can also be having an array of `chars` found in an ASCII `string` or maybe a row of `uint32_t` pixel data. **From this point on let's just assume that the sequence of data we are dealing with are to be these "bags of data" instances** that do not involve any kind of `operator=` or `Foo (const Foo&)` overhead so the data may be safely interpreted as literal bytes, think `memcpy`-like.
+
+Most of us are running 64-bit or 32-bit machines or have register sizes that are easily much bigger than just 1 byte(the animation above had register sizes that are 4 bytes, which is the size of a single 32-bit register). An observation is that we can speed this up is by loading in a full register-sized chunk of bytes, flipping this chunk of bytes within the register, and then placing it on the other end! Swapping all the bytes in the registers is a popular operation in networking called an `endian swap` and x86 happens to have just the instruction to do this!
 
 # bswap
 
