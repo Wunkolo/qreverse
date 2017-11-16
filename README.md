@@ -51,7 +51,7 @@ The emitted x86 of a `std::reverse` on an array of `std::uint8_t` will look some
 
 An animation of the basic algorithm:
 
-![](/images/Naive-Byte.gif)
+![](/images/Serial.gif)
 
 Our own custom implementation of this algorithm to start us off:
 We'll template the element-size at compile-time and emit a pseudo-structure that fits this size in an attempt to keep this illustrative implementation as generic as possible for an element of _any_ size in bytes. By having the element-size be templated we can make specific template specializations for certain element-sizes while all other sizes fall-back to this naive algorithm. Having this done with a template allows the proper specialization to be instanced at compile-time rather than compare a runtime "element-size" argument against a list of available implementations.
@@ -193,11 +193,11 @@ Swap16(unsigned short):
 
 Using 32-bit `bswap`s, the algorithm can take a 4-byte _chunk_ of bytes from either end into registers, `bswap` the register, and then place the reversed _chunks_ at the opposite ends. As the algorithm gets closer to the center it can use smaller 16-bit swaps(aka a 16-bit rotate) should it encounter 2-byte chunks.
 
-![](/images/bswap-32.gif)
+![](/images/Swap32.gif)
 
 and this of course can be expanded into a 64-bit `bswap` allowing for even larger chunks to be reversed at once:
 
-![](/images/bswap-64.gif)
+![](/images/Swap64.gif)
 
 Given an array of `11` bytes to be reversed: divide the array size by two to get the number of _single-element_ swaps to do(using integer arithmetic): `11/2 = 5`. So `5` single-element swaps are needed that we would have to do at either end of our split array. Now that there is a way to do `4` element chunks at once too, integer-divide this result `5` again by `4` to know how many _four-element_ swaps needed(`5/4 = 1`). So only one `bswap`-swap and one `naive`-swap is needed to fully reverse an 11-element array.
 
@@ -376,7 +376,11 @@ for( std::size_t j = i ; j < ( (Count/2) / 8 ) ; ++j)
 ...
 ```
 
-This basically implements a beefed-up 16-byte `bswap` using `SSSE3`. The heart of it all is the `_mm_shuffle_epi8` instruction which _shuffles_ the vector in the first argument according to the vector of byte-indices found in the second argument and returns this new _shuffled_ vector. A constant vector `ShuffleRev` is declared using `_mm_set_epi8` with each byte set to the index of where it should get its byte from(starting from least significant byte). You might read it as going from 0 to 15 in ascending order but this is actually indexing the bytes in reverse order which gives us a fully reversed 16-bit "chunk". Now for some speed tests.
+This basically implements a beefed-up 16-byte `bswap` using `SSSE3`. The heart of it all is the `_mm_shuffle_epi8` instruction which _shuffles_ the vector in the first argument according to the vector of byte-indices found in the second argument and returns this new _shuffled_ vector. A constant vector `ShuffleRev` is declared using `_mm_set_epi8` with each byte set to the index of where it should get its byte from(starting from least significant byte). You might read it as going from 0 to 15 in ascending order but this is actually indexing the bytes in reverse order which gives us a fully reversed 16-bit "chunk".
+
+![](images/SSSE3.gif)
+
+Now for some speed tests.
 
 Element Count|std::reverse|qReverse|Speedup Factor
 ---|---|---|---
@@ -473,6 +477,8 @@ for( std::size_t j = i; j < ((Count / 2) / 32); ++j )
 // Right above the SSSE3 implementation
 ...
 ```
+
+![](images/AVX2.gif)
 
 Benchmarks:
 
@@ -579,6 +585,8 @@ The full `AVX512` implementation:
 	// Above the AVX2 implementation
 ...
 ```
+
+![](images/AVX512.gif)
 
 Since `AVX512` is pretty rare on consumer hardware at the moment: [Intel provides an emulator](https://software.intel.com/en-us/articles/intel-software-development-emulator) that can provide for some verification that the algorithm properly reverses the array. The emulator is no grounds for a proper hardware benchmark though. After creating a simple test program to verify that the array has been reversed it can be ran through the emulator and verified:
 
