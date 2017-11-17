@@ -111,9 +111,9 @@ void qReverse<1ul>(void*, unsigned long):
 
 **From here it gets better!**
 
-This "plain ol data" assumption can be made for lots of different types of data. Most usages of `struct` are intended to be treated as "bags of data" and do not have the limitation of additional memory-movement logic for copying or swapping since they are intended only to communicate a structure of interpretation of bytes. The more obvious case-study can also be having an array of `chars` found in an ASCII `string` or maybe a row of `uint32_t` pixel data. **From this point on assume that the array of data we are dealing with are to be these "bags of data" instances** that do not involve any kind of `operator=` or `Foo (const Foo&)` type of overhead logic so the data may be safely interpreted strictly as bytes, think `memcpy`-like.
+This "plain ol data" assumption can be made for lots of different types of data. Most usages of `struct` are intended to be treated as "bags of data" and do not have the limitation of additional memory-movement logic for copying or swapping since they are intended only to communicate a structure of interpretation of bytes. The more obvious case-study can also be having an array of `chars` found in an ASCII `string` or maybe a row of `uint32_t` pixel data. **From this point on assume that the array of data is to be interpreted as these "bags of data" instances** that do not involve any kind of `operator=` or `Foo (const Foo&)` type of overhead logic so the data may be safely interpreted strictly as bytes, think `memcpy`-like.
 
-Most of the market are running 64-bit or 32-bit machines or have register sizes that are easily much bigger than just 1 byte(the animation above had register sizes that are 4 bytes, which is the size of a single 32-bit register). An observation is that we can speed this up is by loading in a full register-sized chunk of bytes, flipping this chunk of bytes within the register, and then placing it on the other end! Swapping all the bytes in the registers is a popular operation in networking called an `endian swap` and x86 happens to have just the instruction to do this!
+Most of the market are running 64-bit or 32-bit machines or have register sizes that are easily much bigger than just 1 byte(the animation above had register sizes that are 4 bytes, which is the size of a single 32-bit register). An observation is that this can speed this up is by loading in a full register-sized chunk of bytes, flipping this chunk of bytes within the register, and then placing it on the other end! Swapping all the bytes in the registers is a popular operation in networking called an `endian swap` and x86 happens to have just the instruction to do this!
 
 # bswap
 
@@ -221,7 +221,7 @@ Using 32-bit `bswap`s, the algorithm can take a 4-byte _chunk_ of bytes from eit
 
 ![](/images/Swap32.gif)
 
-and this of course can be expanded into a 64-bit `bswap` on a 64-bit architecture allowing for even larger chunks to be reversed at once. Once again, first exhaust as many 8-byte swaps, as possible, then do the 4-byte swaps, then the two-2byte swaps, and finally fallback onto the serial 1-byte swaps if we have to:
+and this of course can be expanded into a 64-bit `bswap` on a 64-bit architecture allowing for even larger chunks to be reversed at once. Once again, first exhaust as many 8-byte swaps, as possible, then do the 4-byte swaps, then the two-2byte swaps, and finally fallback onto the serial 1-byte swaps if need be:
 
 ![](/images/Swap64.gif)
 
@@ -446,7 +446,7 @@ Speedups of up to _**x20**_!.. but this is lower than the `bswap` version which 
 
 # AVX2
 
-The implementation can go even further to work with the even larger 256-bit registers that the `AVX/AVX2` extension provides and reverse *32 byte chunks* at a time. The implementation is very similar to the `SSSE3` one: load in *unaligned* data into a 256-bit register using the `__m256i` type. The issue with `AVX/AVX2` is that the `256-bit` register is actually two individual `128-bit` _lanes_ being operated in parallel as one larger `256-bit` register and overlaps in functionality with the `SSE` register almost as an additional layer of abstraction added upon `SSE`. Now here's where things get tricky, there is no `_mm256_shuffle_epi8` instruction that works like we think it would. Since it's just operating on two 128-bit lanes in parallel, `AVX/AVX2` instructions introduces a limitation in which some cross-lane arithmetic requires special cross-lane attention. Some instructions will accept 256-bit `AVX` registers but only actually operates upon 128-bit lanes. The trick here is that rather than trying to reverse a 256-bit register atomically in one go, instead reverse the bytes within the two 128-bit lanes, as if shuffling two 128-bit registers like in the `SSSE3` implementation, and then reverse the two 128-bit lanes themselves with whatever cross-lane arithmetic that _is_ available in `AVX/AVX2`. Note that `AVX2` requires the gcc compile flag `-mavx2`.
+The implementation can go even further to work with the even larger 256-bit registers that the `AVX/AVX2` extension provides and reverse *32 byte chunks* at a time. The implementation is very similar to the `SSSE3` one: load in *unaligned* data into a 256-bit register using the `__m256i` type. The issue with `AVX/AVX2` is that the `256-bit` register is actually two individual `128-bit` _lanes_ being operated in parallel as one larger `256-bit` register and overlaps in functionality with the `SSE` register almost as an additional layer of abstraction added upon `SSE`. Now here's where things get tricky, there is no `_mm256_shuffle_epi8` instruction that works like you'd think it would. Since it's just operating on two 128-bit lanes in parallel, `AVX/AVX2` instructions introduces a limitation in which some cross-lane arithmetic requires special cross-lane attention. Some instructions will accept 256-bit `AVX` registers but only actually operates upon 128-bit lanes. The trick here is that rather than trying to reverse a 256-bit register atomically in one go, instead reverse the bytes within the two 128-bit lanes, as if shuffling two 128-bit registers like in the `SSSE3` implementation, and then reverse the two 128-bit lanes themselves with whatever cross-lane arithmetic that _is_ available in `AVX/AVX2`. Note that `AVX2` requires the gcc compile flag `-mavx2`.
 
 [_mm256_shuffle_epi8](https://software.intel.com/sites/landingpage/IntrinsicsGuide/#techs=AVX,AVX2&text=shuffle&expand=4726) is an `AVX2` instruction that shuffles the two 128-bit lanes of the 256-bit register much like the `SSSE3` intrinsic so this can be taken care of first.
 
@@ -468,13 +468,11 @@ Lower = _mm256_shuffle_epi8(Lower,ShuffleRev);
 Upper = _mm256_shuffle_epi8(Upper,ShuffleRev);
 ```
 
-So in the large 256-bit register, the two 128-bit lanes are now reversed, but now the 128-bit lanes themselves must be reversed:
-
-[_mm256_permute2x128_si256](https://software.intel.com/en-us/node/524015) is another `AVX2` instruction that permutes the 128-bit lanes of two 256-bit registers:
+So in the large 256-bit register, the two 128-bit lanes are now reversed, but now the 128-bit lanes themselves must be reversed. [_mm256_permute2x128_si256](https://software.intel.com/en-us/node/524015) is another `AVX2` instruction that permutes the 128-bit lanes of two 256-bit registers:
 
 ![](/images/_mm256_permute2x128_si256.jpg)
 
-Given two big 256-bit vectors and an 8-byte immediate value it can select how the new 256-bit vector it builds is going to be assembled. Pass in the same variable for both of the arguments and "picking" from them as if they were just 2-element arrays of 16-byte elements can simulate a big 128-bit cross-lane swap(think of it like `__m128i SomeAVXRegister[2]` ). In a way, this is also a big 128-bit "rotate" if you can visualize it.
+Given two big 256-bit vectors and an 8-byte immediate value it can select how the new 256-bit vector it builds is going to be assembled. Pass in the same variable for both of the arguments and "picking" from them as if they were just 2-element arrays of 16-byte elements can simulate a big 128-bit cross-lane swap(think of it like `__m128i SomeAVXRegister[2]` and going `SomeAVXRegister[0]` or `SomeAVXRegister[1]` ). In a way, this is also a big 128-bit "rotate" if you can visualize it.
 
 ```cpp
 ...
@@ -549,11 +547,26 @@ A speedup of up to _**x31**_!
 
 # AVX512
 
-`AVX512` is particularly rare out in the commercial world. Even so, we can take the algorithm that much more of a step forward and operate upon massive 512-bit bit registers. This will allow us to swap `64` bytes of data at once. At the moment, C and C++ compiler implementations of the `AVX512` instruction set are spotty at best. There is the benefit of the [_mm512_shuffle_epi8](https://software.intel.com/sites/landingpage/IntrinsicsGuide/#expand=4729&text=_mm512_shuffle_epi8) instruction that will allow us to shuffle the bytes of the four 128-lane registers within the 512-bit register with 8-bit indexes though there is not a confident implementation of [_mm512_set_epi8](https://software.intel.com/sites/landingpage/IntrinsicsGuide/#=undefined&avx512techs=AVX512F,AVX512BW,AVX512CD,AVX512DQ,AVX512ER,AVX512IFMA52,AVX512PF,AVX512VBMI,AVX512VL&expand=4726,4038,4594,4594&text=_mm512_set_epi8) to be found in MSVC or GCC. There is [_mm512_set_epi32](https://software.intel.com/sites/landingpage/IntrinsicsGuide/#=undefined&avx512techs=AVX512F,AVX512BW,AVX512CD,AVX512DQ,AVX512ER,AVX512IFMA52,AVX512PF,AVX512VBMI,AVX512VL&expand=4726,4038,4594,4594,4038,4587&text=_mm512_set_epi32) which will require generation of the `ShuffleRev` constant to use 32-bit integers rather than 8-bit integers. After the initial `_mm512_shuffle_epi8` the four lanes still must be reversed due to the need for cross-lane arithmetic so an additional [_mm512_permutexvar_epi64](https://software.intel.com/sites/landingpage/IntrinsicsGuide/#expand=4726,4594,4729,3972,4029,4029,3930,4729,3930,4029,4589,4029,4029&avx512techs=AVX512F,AVX512BW&text=_mm512_permutexvar_epi64) is needed to truely complete the reversal. This is similar to what had to be done for the `AVX2` implementation above. Note that `AVX512` requires the gcc flag `-mavx512bw` for `AVX512BW` which subsequently includes `AVX512F`.
+`AVX512` is particularly rare out in the commercial world. Even so, the algorithm cant take that much more of a step forward and operate upon massive 512-bit bit registers. This will allow a swap `64` of bytes of data at once. At the moment, C and C++ compiler implementations of the `AVX512` instruction set are spotty at best. There is the benefit of the [_mm512_shuffle_epi8](https://software.intel.com/sites/landingpage/IntrinsicsGuide/#expand=4729,4753&text=_mm512_shuffle_epi8) instruction that will allow the shuffling of the four 128-lane registers within the 512-bit register with 8-bit indexes though there is not a confident implementation of [_mm512_set_epi8](https://software.intel.com/sites/landingpage/IntrinsicsGuide/#=undefined&avx512techs=AVX512F&expand=4726,4038,4594,4594,4618,4618&text=_mm512_set_epi8) to be found in MSVC or GCC. There is [_mm512_set_epi32](https://software.intel.com/sites/landingpage/IntrinsicsGuide/#=undefined&expand=4726,4038,4594,4594,4618,4618,4618,4611&text=_mm512_set_epi32&avx512techs=AVX512F) which will require generation of the `ShuffleRev` constant to use 32-bit integers rather than 8-bit integers. After the initial `_mm512_shuffle_epi8` the four lanes still must be reversed due to the need for cross-lane arithmetic so an additional [_mm512_permutexvar_epi64](https://software.intel.com/sites/landingpage/IntrinsicsGuide/#expand=4726,4594,4729,3972,4029,4029,3930,4729,3930,4029,4589,4029,4029,4047,4047&avx512techs=AVX512F&text=_mm512_permutexvar_epi64) is needed to truely complete the reversal. This is similar to what had to be done for the `AVX2` implementation above.
 
-`AVX512` is not a set-in-stone implementation of instruction sets though. `AVX512` has different subsets which may or may not be implemented for a specified processor. For example there is `AVX512CD` for conflict detection and `AVX512ER` for exponential and reciprocal instructions though ALL implementations of `AVX512` _require_ that `AVX512F`(AVX-512 Foundation) be implemented. `_mm512_shuffle_epi8` is an instruction implemented by the `AVX512BW` subset which adds **B**yte and **W**ord operations while `_mm512_setepi32` and `_mm512_permutexvar_epi64` are `AVX512F` so `_mm512_shuffle_epi8` is the only "stretch" requirement involved here. `AVX512BW` is currently supported by the current Skylake Enthusiast processors and is planned for the future Cannonlake processors. For reference, a current map of `AVX512` subset implementations(as of September 3, 2017):
+`AVX512` is not a single set of instructions. `AVX512` has different subsets which may or may not be implemented for a specified processor. For example there is `AVX512CD` for conflict detection and `AVX512ER` for exponential and reciprocal instructions though ALL implementations of `AVX512` _require_ that `AVX512F`(AVX-512 Foundation) be implemented. `_mm512_shuffle_epi8` is an instruction implemented by the `AVX512BW` subset which adds **B**yte and **W**ord operations while `_mm512_setepi32` and `_mm512_permutexvar_epi64` are `AVX512F` so `_mm512_shuffle_epi8` is the only "stretch" requirement involved here. `AVX512BW` is currently supported by the current Skylake Enthusiast processors and is planned for the future Cannonlake processors. For reference, a current map of `AVX512` subset implementations(as of September 3, 2017).
 
 ![](images/avx512-cpus.png)
+
+In GCC, specific subsets of `AVX512` must be enabled using compile flags:
+
+ - `-mavx512f`
+ - `-mavx512pf`
+ - `-mavx512er`
+ - `-mavx512cd`
+ - `-mavx512vl`
+ - `-mavx512bw`
+ - `-mavx512dq`
+ - `-mavx512ifma`
+ - `-mavx512vbmi`
+
+
+`_mm512_shuffle_epi8` and requires the `-mavx512bw` flag to compile in gcc while the rest only require `-mavx512f`.
 
 ```cpp
 // Could have done:
@@ -564,7 +577,6 @@ const __m512i ShuffleRev = _mm512_set_epi8(
 	0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15
 );
 // but instead have to do the more awkward:
-
 const __m512i ShuffleRev = _mm512_set_epi32(
 	0x00010203, 0x4050607, 0x8090a0b, 0xc0d0e0f,
 	0x00010203, 0x4050607, 0x8090a0b, 0xc0d0e0f,
@@ -698,6 +710,6 @@ A plateau of speedups up to _**x33**_!
 
 # The "middle chunk" ( TODO )
 
-Once we work our way down the middle and end up with something like `4` "middle" elements left then we are just one `Swap32` left from having the entire array reversed. What if we worked our way down to the middle and ended up with `5` elements though? This would not be possible actually so long as we have `Swap16`. `5` middle elements would mean we have `one middle element` with `two elements on either side`. Our `for( std::size_t j = i/2; j < ( (Count/2) / 2)` would catch that and `Swap16` the two elements on either side, getting us just `1` element left right in the middle which can stay right where it is within a reversed array(since the middle-most element in an odd-numbered array is our *pivot* and doesn't have to move anywhere).
+Once the algorithm works its way down the middle and end up with something like `4` "middle" elements left then it's just one `Swap32` left from having the entire array reversed. What if it worked down to the middle and ended up with `5` elements though? This would not be possible actually so long as we have `Swap16`. `5` middle elements would mean we have `one middle element` with `two elements on either side`. The `for( std::size_t j = i/2; j < ( (Count/2) / 2)` would catch that and `Swap16` the two elements on either side, getting just `1` element left right in the middle which can stay right where it is within a reversed array(since the middle-most element in an odd-numbered array is the *pivot* and doesn't have to move anywhere).
 
-TODO: Later we can find a way to accelerate our algorithm to have it consider these pivot-cases efficiently so that rather than calling two `Swap16`s on either half of a 4-byte case it could just call one last `Swap32` or even a bigger before it even parks itself in that situation of having to use the naive swap. Something like this could remove the use of the naive swap pretty much entirely.
+> TODO: Later find a way to accelerate the algorithm to have it consider these pivot-cases efficiently so that rather than calling two `Swap16`s on either half of a 4-middle-byte case it could just call one last `Swap32` or even a bigger before it would get rid of it before it parks itself in that situation of having to use the naive swap. Something like this could remove the use of the naive swap pretty much entirely even if dealing with prime numbers of some sort.
