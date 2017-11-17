@@ -34,22 +34,22 @@ Should `std::reverse` be called upon a "**P**lain **O**l **D**ata"(POD) type suc
 
 The emitted x86 of a `std::reverse` on an array of `std::uint8_t` generally looks something like this.
 
-```nasm
-      ; std::reverse for std::uint8_t
-      0x000014a0 4839fe         cmp rsi, rdi
-  ,=< 0x000014a3 7420           je 0x14c5
-  |   0x000014a5 4883ee01       sub rsi, 1
-  |   0x000014a9 4839f7         cmp rdi, rsi
- ,==< 0x000014ac 7317           jae 0x14c5
-.---> 0x000014ae 0fb607         movzx eax, byte [rdi] ; Load two bytes, one from
-|||   0x000014b1 0fb616         movzx edx, byte [rsi] ; each end.
-|||   0x000014b4 8817           mov byte [rdi], dl    ; Write them at opposite
-|||   0x000014b6 8806           mov byte [rsi], al    ; ends.
-|||   0x000014b8 4883c701       add rdi, 1            ; Shift index at
-|||   0x000014bc 4883ee01       sub rsi, 1            ; both ends "inward" toward the middle
-|||   0x000014c0 4839f7         cmp rdi, rsi
-`===< 0x000014c3 72e9           jb 0x14ae
- ``-> 0x000014c5 f3c3           ret
+```x86asm
+         ; std::reverse for std::uint8_t
+         0x000014a0 cmp rsi, rdi
+     /=< 0x000014a3 je 0x14c5
+     |   0x000014a5 sub rsi, 1
+     |   0x000014a9 cmp rdi, rsi
+    /==< 0x000014ac jae 0x14c5
+   .---> 0x000014ae movzx eax, byte [rdi] ; Load two bytes, one from
+   |||   0x000014b1 movzx edx, byte [rsi] ; each end.
+   |||   0x000014b4 mov byte [rdi], dl    ; Write them at opposite
+   |||   0x000014b6 mov byte [rsi], al    ; ends.
+   |||   0x000014b8 add rdi, 1            ; Shift index at
+   |||   0x000014bc sub rsi, 1            ; both ends "inward" toward the middle
+   |||   0x000014c0 cmp rdi, rsi
+   \===< 0x000014c3 jb 0x14ae
+    \\-> 0x000014c5 ret
 ```
 
 When making qReverse, the primary interface implements a templated algorithm that follows the same logic.
@@ -85,107 +85,114 @@ inline void qReverse(void* Array, std::size_t Count)
 }
 ```
 
-Emitted assembly for: `auto Reverse8 = qReverse<1>;` from gcc is:
-```nasm
-void qReverse<1ul>(void*, unsigned long):
-  mov rcx, rsi
-  shr rcx
-  je .L1
-  lea rdx, [rsi-1]
-  lea rax, [rdi+rdx]
-  sub rdx, rcx
-  lea rdx, [rdi+rdx]
-.L3:
-  movzx ecx, BYTE PTR [rdi] ; Load bytes at each end
-  movzx esi, BYTE PTR [rax]
-  sub rax, 1                ; Move indexs "inwards"
-  add rdi, 1
-  mov BYTE PTR [rdi-1], sil ; Place them at the other end
-  mov BYTE PTR [rax+1], cl
-  cmp rax, rdx              ; Loop
-  jne .L3
-.L1:
-  rep ret
-```
+Emitted assemblies from gcc with certain template specializations:
 
-`auto Reverse16 = qReverse<2>;`
+> ```cpp
+> auto Reverse8 = qReverse<1>;
+> ```
+> ```x86asm
+> void qReverse<1ul>(void*, unsigned long):
+>   mov rcx, rsi
+>   shr rcx
+>   je .L1
+>   lea rdx, [rsi-1]
+>   lea rax, [rdi+rdx]
+>   sub rdx, rcx
+>   lea rdx, [rdi+rdx]
+> .L3:
+>   movzx ecx, BYTE PTR [rdi] ; Load bytes at each end
+>   movzx esi, BYTE PTR [rax]
+>   sub rax, 1                ; Move indexs "inwards"
+>   add rdi, 1
+>   mov BYTE PTR [rdi-1], sil ; Place them at the other end
+>   mov BYTE PTR [rax+1], cl
+>   cmp rax, rdx              ; Loop
+>   jne .L3
+> .L1:
+>   rep ret
+> ```
 
-```nasm
-void qReverse<2ul>(void*, unsigned long):
-  mov rdx, rsi
-  shr rdx
-  je .L17
-  lea rax, [rdi-2+rsi*2]
-  add rdx, rdx
-  mov rsi, rax
-  sub rsi, rdx
-.L12:
-  movzx edx, WORD PTR [rdi] ; Same as above
-  movzx ecx, WORD PTR [rax]
-  sub rax, 2
-  add rdi, 2
-  mov WORD PTR [rdi-2], cx
-  mov WORD PTR [rax+2], dx
-  cmp rax, rsi
-  jne .L12
-.L17:
-  rep ret
-```
+> ```cpp
+> auto Reverse16 = qReverse<2>;
+> ```
+> ```x86asm
+> void qReverse<2ul>(void*, unsigned long):
+>   mov rdx, rsi
+>   shr rdx
+>   je .L17
+>   lea rax, [rdi-2+rsi*2]
+>   add rdx, rdx
+>   mov rsi, rax
+>   sub rsi, rdx
+> .L12:
+>   movzx edx, WORD PTR [rdi] ; Same as above
+>   movzx ecx, WORD PTR [rax]
+>   sub rax, 2
+>   add rdi, 2
+>   mov WORD PTR [rdi-2], cx
+>   mov WORD PTR [rax+2], dx
+>   cmp rax, rsi
+>   jne .L12
+> .L17:
+>   rep ret
+> ```
 
-`auto Reverse32 = qReverse<4>;`
+> ```cpp
+> auto Reverse32 = qReverse<4>;
+> ```
+> ```x86asm
+> void qReverse<4ul>(void*, unsigned long):
+>   mov rdx, rsi
+>   shr rdx
+>   je .L25
+>   lea rax, [rdi-4+rsi*4]
+>   sal rdx, 2
+>   mov rsi, rax
+>   sub rsi, rdx
+> .L20:
+>   mov edx, DWORD PTR [rdi] ; Same as above
+>   mov ecx, DWORD PTR [rax]
+>   sub rax, 4
+>   add rdi, 4
+>   mov DWORD PTR [rdi-4], ecx
+>   mov DWORD PTR [rax+4], edx
+>   cmp rax, rsi
+>   jne .L20
+> .L25:
+>   rep ret
+> ```
 
-```nasm
-void qReverse<4ul>(void*, unsigned long):
-  mov rdx, rsi
-  shr rdx
-  je .L25
-  lea rax, [rdi-4+rsi*4]
-  sal rdx, 2
-  mov rsi, rax
-  sub rsi, rdx
-.L20:
-  mov edx, DWORD PTR [rdi] ; Same as above
-  mov ecx, DWORD PTR [rax]
-  sub rax, 4
-  add rdi, 4
-  mov DWORD PTR [rdi-4], ecx
-  mov DWORD PTR [rax+4], edx
-  cmp rax, rsi
-  jne .L20
-.L25:
-  rep ret
-```
-
-`auto Reverse24 = qReverse<3>;`
-
-```nasm
-void qReverse<3ul>(void*, unsigned long):
-  mov rdx, rsi
-  shr rdx
-  je .L25
-  lea rax, [rsi-3+rsi*2]
-  lea rdx, [rdx+rdx*2]
-  add rax, rdi
-  mov r8, rax
-  sub r8, rdx
-.L20:
-  movzx esi, WORD PTR [rax] ; Due to the element being 3 bytes
-  movzx ecx, WORD PTR [rdi] ; The arithmetic gets especially weird
-  sub rax, 3                ; But it is still the same
-  movzx edx, BYTE PTR [rdi+2]
-  add rdi, 3
-  mov WORD PTR [rdi-3], si
-  movzx esi, BYTE PTR [rax+5]
-  mov WORD PTR [rsp-3], cx
-  mov BYTE PTR [rsp-1], dl
-  mov BYTE PTR [rdi-1], sil
-  mov WORD PTR [rax+3], cx
-  mov BYTE PTR [rax+5], dl
-  cmp rax, r8
-  jne .L20
-.L25:
-  rep ret
-```
+> ```cpp
+> auto Reverse24 = qReverse<3>;
+> ```
+> ```x86asm
+> void qReverse<3ul>(void*, unsigned long):
+>   mov rdx, rsi
+>   shr rdx
+>   je .L25
+>   lea rax, [rsi-3+rsi*2]
+>   lea rdx, [rdx+rdx*2]
+>   add rax, rdi
+>   mov r8, rax
+>   sub r8, rdx
+> .L20:
+>   movzx esi, WORD PTR [rax] ; Due to the element being 3 bytes
+>   movzx ecx, WORD PTR [rdi] ; The arithmetic gets especially weird
+>   sub rax, 3                ; But it is still the same
+>   movzx edx, BYTE PTR [rdi+2]
+>   add rdi, 3
+>   mov WORD PTR [rdi-3], si
+>   movzx esi, BYTE PTR [rax+5]
+>   mov WORD PTR [rsp-3], cx
+>   mov BYTE PTR [rsp-1], dl
+>   mov BYTE PTR [rdi-1], sil
+>   mov WORD PTR [rax+3], cx
+>   mov BYTE PTR [rax+5], dl
+>   cmp rax, r8
+>   jne .L20
+> .L25:
+>   rep ret
+> ```
 
 **From here it gets better!**
 
@@ -248,7 +255,7 @@ inline std::uint16_t Swap16(std::uint16_t x)
 Most compilers are able to detect when an in-register endian-swap is being done like above and will emit `bswap` automatically or a similar intrinsic for your target architecture(The ARM architecture has the `rev` instruction for **armv6** or newer). Note also that `bswap16` is basically just a 16-bit rotate of 1 byte which is the `rol` or `ror` instruction.
 
 x86_64 (gcc):
-```
+```x86asm
 Swap64(unsigned long):
   mov rax, rdi
   bswap rax
@@ -264,7 +271,7 @@ Swap16(unsigned short):
 ```
 
 x86_64 (clang):
-```
+```x86asm
 Swap64(unsigned long): # @Swap64(unsigned long)
   bswap rdi
   mov rax, rdi
@@ -282,7 +289,7 @@ Swap16(unsigned short): # @Swap16(unsigned short)
 ```
 
 ARM64 (gcc):
-```
+```armasm
 Swap64(unsigned long):
   rev x0, x0
   ret
@@ -633,18 +640,20 @@ A speedup of up to _**x31**_!
 
 In GCC, specific subsets of `AVX512` must be enabled using compile flags:
 
- - `-mavx512f`
- - `-mavx512pf`
- - `-mavx512er`
- - `-mavx512cd`
- - `-mavx512vl`
- - `-mavx512bw`
- - `-mavx512dq`
- - `-mavx512ifma`
- - `-mavx512vbmi`
+Subset|Flag
+-|-
+**Foundation**|`-mavx512f`
+Prefetch|`-mavx512pf`
+Exponential/Reciprocal|`-mavx512er`
+Conflict Detection|`-mavx512cd`
+Vector Length|`-mavx512vl`
+**Byte And Word**|`-mavx512bw`
+Doubleword and Quadword|`-mavx512dq`
+*Integer Fused Multiply Add*|`-mavx512ifma`
+*Vector Byte Manipulation*|`-mavx512vbmi`
 
 
-`_mm512_shuffle_epi8` and requires the `-mavx512bw` flag to compile in gcc while the rest only require `-mavx512f`.
+`_mm512_shuffle_epi8` and requires the `-mavx512bw` flag to compile in gcc while the rest only requires `-mavx512f`.
 
 ```cpp
 // Could have done:
