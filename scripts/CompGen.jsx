@@ -11,7 +11,7 @@ function GenSwap(Config) {
 
 	// Constants
 	var CellCount = CellColumns * CellRows;
-	var SortedScale = 2/3;
+	var SortedScale = 2 / 3;
 	var TotalSwaps = 0;
 	var RemainingSwaps = Math.floor(CellCount / 2);
 	Alignments.slice().sort().reverse().map(function (CurAlign, i) {
@@ -239,9 +239,8 @@ function GenSwap(Config) {
 	}
 
 	// If odd-numbered amount of cells, the middle-most element is already sorted
-	if( CellCount % 2 == 1 )
-	{
-		var MiddleCell = CellArray[ Math.floor(CellCount / 2)];
+	if (CellCount % 2 == 1) {
+		var MiddleCell = CellArray[Math.floor(CellCount / 2)];
 		MiddleCell.scale.setValue(
 			[
 				MiddleCell.scale.value[0] * SortedScale,
@@ -398,7 +397,7 @@ function GenSwap(Config) {
 				CurCell.scale.setValueAtTime(
 					PhaseIn + 5 / 6 * SwapDuration + CellDelay,
 					[
-						CurCell.scale.value[0] * SortedScale, 
+						CurCell.scale.value[0] * SortedScale,
 						CurCell.scale.value[1] * SortedScale,
 					]
 				);
@@ -456,35 +455,57 @@ function GenSwap(Config) {
 	return CurComp;
 }
 
-// Serial
+// Middle
 var Serial = GenSwap({
-	Size : [520,360],
-	CellWidth : 48,
-	CellColumns : 9,
-	CellRows : 3,
-	RegisterCellCount : 4,
-	SwapDuration : 1.33,
-	Alignments : [
+	Size: [520, 360],
+	CellWidth: 32,
+	CellColumns: 8,
+	CellRows: 7,
+	RegisterCellCount: 8,
+	SwapDuration: 3.0,
+	Alignments: [
+		8,
+		4,
+		2,
 		1
 	],
-	OpNames : [
+	OpNames: [
+		"Swap64",
+		"Swap32",
+		"Swap16",
+		"Serial"
+	]
+}).name = "Middle";
+
+// Serial
+var Serial = GenSwap({
+	Size: [520, 360],
+	CellWidth: 48,
+	CellColumns: 9,
+	CellRows: 3,
+	RegisterCellCount: 4,
+	SwapDuration: 1.33,
+	Alignments: [
+		1
+	],
+	OpNames: [
 		""
 	]
 }).name = "Serial";
 
 // Swap16
 var Serial = GenSwap({
-	Size : [520,360],
-	CellWidth : 48,
-	CellColumns : 9,
-	CellRows : 3,
-	RegisterCellCount : 4,
-	SwapDuration : 2.6,
-	Alignments : [
+	Size: [520, 360],
+	CellWidth: 48,
+	CellColumns: 9,
+	CellRows: 3,
+	RegisterCellCount: 4,
+	SwapDuration: 2.6,
+	Alignments: [
 		2,
 		1
 	],
-	OpNames : [
+	OpNames: [
 		"Swap16",
 		"Serial"
 	]
@@ -492,18 +513,18 @@ var Serial = GenSwap({
 
 // Swap32
 var Serial = GenSwap({
-	Size : [520,360],
-	CellWidth : 36,
-	CellColumns : 11,
-	CellRows : 5,
-	RegisterCellCount : 4,
-	SwapDuration : 1.5,
-	Alignments : [
+	Size: [520, 360],
+	CellWidth: 36,
+	CellColumns: 11,
+	CellRows: 5,
+	RegisterCellCount: 4,
+	SwapDuration: 1.5,
+	Alignments: [
 		4,
 		2,
 		1
 	],
-	OpNames : [
+	OpNames: [
 		"Swap32",
 		"Swap16",
 		"Serial"
@@ -512,19 +533,19 @@ var Serial = GenSwap({
 
 // Swap64
 var Serial = GenSwap({
-	Size : [520,360],
-	CellWidth : 36,
-	CellColumns : 11,
-	CellRows : 5,
-	RegisterCellCount : 8,
-	SwapDuration : 1.5,
-	Alignments : [
+	Size: [520, 360],
+	CellWidth: 36,
+	CellColumns: 11,
+	CellRows: 5,
+	RegisterCellCount: 8,
+	SwapDuration: 1.5,
+	Alignments: [
 		8,
 		4,
 		2,
 		1
 	],
-	OpNames : [
+	OpNames: [
 		"Swap64",
 		"Swap32",
 		"Swap16",
@@ -534,20 +555,20 @@ var Serial = GenSwap({
 
 // SSSE3
 var Serial = GenSwap({
-	Size : [520,360],
-	CellWidth : 24,
-	CellColumns : 15,
-	CellRows : 9,
-	RegisterCellCount : 16,
-	SwapDuration : 2.5,
-	Alignments : [
+	Size: [520, 360],
+	CellWidth: 24,
+	CellColumns: 15,
+	CellRows: 9,
+	RegisterCellCount: 16,
+	SwapDuration: 2.5,
+	Alignments: [
 		16,
 		8,
 		4,
 		2,
 		1
 	],
-	OpNames : [
+	OpNames: [
 		"_mm_shuffle_epi8",
 		"Swap64",
 		"Swap32",
@@ -558,13 +579,13 @@ var Serial = GenSwap({
 
 // AVX2
 var Serial = GenSwap({
-	Size : [520,360],
-	CellWidth : 16,
-	CellColumns : 23,
-	CellRows : 11,
-	RegisterCellCount : 32,
-	SwapDuration : 2.5,
-	Alignments : [
+	Size: [520, 360],
+	CellWidth: 16,
+	CellColumns: 23,
+	CellRows: 11,
+	RegisterCellCount: 32,
+	SwapDuration: 2.5,
+	Alignments: [
 		32,
 		16,
 		8,
@@ -572,7 +593,7 @@ var Serial = GenSwap({
 		2,
 		1
 	],
-	OpNames : [
+	OpNames: [
 		"_mm256_shuffle_epi8/_mm256_permute2x128_si256",
 		"_mm_shuffle_epi8",
 		"Swap64",
@@ -584,13 +605,13 @@ var Serial = GenSwap({
 
 // AVX512
 var Serial = GenSwap({
-	Size : [520,360],
-	CellWidth : 8,
-	CellColumns : 27,
-	CellRows : 17,
-	RegisterCellCount : 64,
-	SwapDuration : 2.5,
-	Alignments : [
+	Size: [520, 360],
+	CellWidth: 8,
+	CellColumns: 27,
+	CellRows: 17,
+	RegisterCellCount: 64,
+	SwapDuration: 2.5,
+	Alignments: [
 		64,
 		32,
 		16,
@@ -599,7 +620,7 @@ var Serial = GenSwap({
 		2,
 		1
 	],
-	OpNames : [
+	OpNames: [
 		"_mm512_shuffle_epi8/_mm512_permutexvar_epi64",
 		"_mm256_shuffle_epi8/_mm256_permute2x128_si256",
 		"_mm_shuffle_epi8",
