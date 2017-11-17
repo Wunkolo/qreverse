@@ -6,7 +6,7 @@ qReverse is an architecture-accelerated array reversal algorithm intended as a p
 
 Array reversal implementations typically involve swapping both ends of the array and working down to the middle-most elements. C++ being type-aware treats array elements as objects and will call overloaded class operators such as `operator=` or a `copy by reference` constructor where available. Many implementations of a "swap" function would use an intermediate temporary variable to make the exchange which would require a minimum of two calls to an object's `operator=` and at least one call to an object's `copy by reference` constructor. Some other novel algorithms use the xor-swap technique after making some assumptions about the data being swapped(integer-data, register-bound, no overrides, etc). `std::swap` also allows an overload of `swap` for a type to be used if it is within the same namespace as your type should you want to expose your overloaded method to C++'s standard algorithm library during the reversal
 
-```c++
+```cpp
 // Taken from http://en.cppreference.com/w/cpp/algorithm/reverse
 // Example of using std::reverse
 #include <vector>
@@ -34,7 +34,7 @@ Should `std::reverse` be called upon a "**P**lain **O**l **D**ata"(POD) type suc
 
 The emitted x86 of a `std::reverse` on an array of `std::uint8_t` generally looks something like this.
 
-```
+```nasm
       ; std::reverse for std::uint8_t
       0x000014a0 4839fe         cmp rsi, rdi
   ,=< 0x000014a3 7420           je 0x14c5
@@ -86,7 +86,7 @@ inline void qReverse(void* Array, std::size_t Count)
 ```
 
 Emitted assembly for: `auto Reverse8 = qReverse<1>;` from gcc is:
-```cpp
+```nasm
 void qReverse<1ul>(void*, unsigned long):
   mov rcx, rsi
   shr rcx
@@ -108,10 +108,88 @@ void qReverse<1ul>(void*, unsigned long):
   rep ret
 ```
 
+`auto Reverse16 = qReverse<2>;`
+
+```nasm
+void qReverse<2ul>(void*, unsigned long):
+  mov rdx, rsi
+  shr rdx
+  je .L17
+  lea rax, [rdi-2+rsi*2]
+  add rdx, rdx
+  mov rsi, rax
+  sub rsi, rdx
+.L12:
+  movzx edx, WORD PTR [rdi] ; Same as above
+  movzx ecx, WORD PTR [rax]
+  sub rax, 2
+  add rdi, 2
+  mov WORD PTR [rdi-2], cx
+  mov WORD PTR [rax+2], dx
+  cmp rax, rsi
+  jne .L12
+.L17:
+  rep ret
+```
+
+`auto Reverse32 = qReverse<4>;`
+
+```nasm
+void qReverse<4ul>(void*, unsigned long):
+  mov rdx, rsi
+  shr rdx
+  je .L25
+  lea rax, [rdi-4+rsi*4]
+  sal rdx, 2
+  mov rsi, rax
+  sub rsi, rdx
+.L20:
+  mov edx, DWORD PTR [rdi] ; Same as above
+  mov ecx, DWORD PTR [rax]
+  sub rax, 4
+  add rdi, 4
+  mov DWORD PTR [rdi-4], ecx
+  mov DWORD PTR [rax+4], edx
+  cmp rax, rsi
+  jne .L20
+.L25:
+  rep ret
+```
+
+`auto Reverse24 = qReverse<3>;`
+
+```nasm
+void qReverse<3ul>(void*, unsigned long):
+  mov rdx, rsi
+  shr rdx
+  je .L25
+  lea rax, [rsi-3+rsi*2]
+  lea rdx, [rdx+rdx*2]
+  add rax, rdi
+  mov r8, rax
+  sub r8, rdx
+.L20:
+  movzx esi, WORD PTR [rax] ; Due to the element being 3 bytes
+  movzx ecx, WORD PTR [rdi] ; The arithmetic gets especially weird
+  sub rax, 3                ; But it is still the same
+  movzx edx, BYTE PTR [rdi+2]
+  add rdi, 3
+  mov WORD PTR [rdi-3], si
+  movzx esi, BYTE PTR [rax+5]
+  mov WORD PTR [rsp-3], cx
+  mov BYTE PTR [rsp-1], dl
+  mov BYTE PTR [rdi-1], sil
+  mov WORD PTR [rax+3], cx
+  mov BYTE PTR [rax+5], dl
+  cmp rax, r8
+  jne .L20
+.L25:
+  rep ret
+```
 
 **From here it gets better!**
 
-This "plain ol data" assumption can be made for lots of different types of data. Most usages of `struct` are intended to be treated as "bags of data" and do not have the limitation of additional memory-movement logic for copying or swapping since they are intended only to communicate a structure of interpretation of bytes. The more obvious case-study can also be having an array of `chars` found in an ASCII `string` or maybe a row of `uint32_t` pixel data. **From this point on assume that the array of data is to be interpreted as these "bags of data" instances** that do not involve any kind of `operator=` or `Foo (const Foo&)` type of overhead logic so the data may be safely interpreted strictly as bytes, think `memcpy`-like.
+This "plain ol data" assumption can be made for lots of different types of data. Most usages of `struct` are intended to be treated as "bags of data" and do not have the limitation of additional memory-movement logic for copying or swapping since they are intended only to communicate a structure of interpretation of bytes. The more obvious case-study can also be having an array of `chars` found in an ASCII `string` or maybe a row of `uint32_t` pixel data. If the array elements are aligned to register-sizes(which tend to be powers of 2) then these in-register byte swaps and shuffling can be especially useful. **From this point on assume that the array of data is to be interpreted as these "bags of data" instances** that do not involve any kind of `operator=` or `Foo (const Foo&)` type of overhead logic so the data may be safely interpreted strictly as bytes, think `memcpy`-like.
 
 Most of the market are running 64-bit or 32-bit machines or have register sizes that are easily much bigger than just 1 byte(the animation above had register sizes that are 4 bytes, which is the size of a single 32-bit register). An observation is that this can speed this up is by loading in a full register-sized chunk of bytes, flipping this chunk of bytes within the register, and then placing it on the other end! Swapping all the bytes in the registers is a popular operation in networking called an `endian swap` and x86 happens to have just the instruction to do this!
 
