@@ -64,23 +64,28 @@ foreach( ElementSize ${ElementSizes})
 endforeach( ElementSize )
 
 # Benchmark
-add_executable(
-	Benchmark
-	tests/benchmark.cpp
-)
-target_include_directories(
-	Benchmark
-	PRIVATE
-	include
-)
 
-target_compile_definitions(
-	Benchmark
-	PRIVATE
-	ELEMENTSIZE=1
-)
-
-add_test(
-	NAME Benchmark
-	COMMAND Benchmark
-)
+# Create benchmarks for each element size
+foreach( ElementSize ${ElementSizes})
+	add_executable(
+		"Benchmark${ElementSize}"
+		tests/benchmark.cpp
+	)
+	target_include_directories(
+		"Benchmark${ElementSize}"
+		PRIVATE
+		include
+	)
+	target_compile_definitions(
+		"Benchmark${ElementSize}"
+		PRIVATE
+		ELEMENTSIZE=${ElementSize}
+	)
+	# Add tests for each element size
+	foreach( ElementCount ${ElementCounts})
+		add_test(
+			NAME "Benchmark${ElementSize}-${ElementCount}"
+			COMMAND "Benchmark${ElementSize}" ${ElementCount}
+		)
+	endforeach( ElementCount )
+endforeach( ElementSize )
