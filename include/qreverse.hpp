@@ -379,7 +379,7 @@ inline void qReverse<4>(void* Array, std::size_t Count)
 			Lower
 		);
 
-		// 8 elements at a time
+		// 4 elements at a time
 		i += 4;
 	}
 #endif
@@ -392,5 +392,54 @@ inline void qReverse<4>(void* Array, std::size_t Count)
 		std::uint32_t Temp(Array32[i]);
 		Array32[i] = Array32[Count - i - 1];
 		Array32[Count - i - 1] = Temp;
+	}
+}
+
+// 8 byte elements
+template<>
+inline void qReverse<8>(void* Array, std::size_t Count)
+{
+	std::uint64_t* Array64 = reinterpret_cast<std::uint64_t*>(Array);
+	std::size_t i = 0;
+
+	// SSSE3
+#if defined(__SSSE3__)
+	for( std::size_t j = i; j < ((Count / 2) / 2); ++j )
+	{
+		// Load 2 elements at once into one 16-byte register
+		__m128i Lower = _mm_loadu_si128(
+			reinterpret_cast<__m128i*>(&Array64[i])
+		);
+		__m128i Upper = _mm_loadu_si128(
+			reinterpret_cast<__m128i*>(&Array64[Count - i - 2])
+		);
+
+		// Reverse the byte order of our 16-byte vectors
+		Lower = _mm_alignr_epi8(Lower, Lower, 8);
+		Upper = _mm_alignr_epi8(Upper, Upper, 8);
+
+		// Place them at their swapped position
+		_mm_storeu_si128(
+			reinterpret_cast<__m128i*>(&Array64[i]),
+			Upper
+		);
+		_mm_storeu_si128(
+			reinterpret_cast<__m128i*>(&Array64[Count - i - 2]),
+			Lower
+		);
+
+		// 2 elements at a time
+		i += 2;
+	}
+#endif
+
+	// Naive swaps
+	for( ; i < Count / 2; ++i )
+	{
+		// Exchange the upper and lower element as we work our
+		// way down to the middle from either end
+		std::uint64_t Temp(Array64[i]);
+		Array64[i] = Array64[Count - i - 1];
+		Array64[Count - i - 1] = Temp;
 	}
 }
