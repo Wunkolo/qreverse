@@ -300,6 +300,47 @@ inline void qReverse<2>(void* Array, std::size_t Count)
 {
 	std::uint16_t* Array16 = reinterpret_cast<std::uint16_t*>(Array);
 	std::size_t i = 0;
+	// AVX-512BW/F
+#if defined(__AVX512F__) && defined(__AVX512BW__)
+	for( std::size_t j = i; j < ((Count / 2) / 32); ++j )
+	{
+		const __m512i ShuffleRev16 = _mm512_set_epi64(
+			0x00000100020003,
+			0x04000500060007,
+			0x080009000a000b,
+			0x0c000d000e000f,
+			0x10001100120013,
+			0x14001500160017,
+			0x180019001a001b,
+			0x1c001d001e001f
+		);
+
+		// Load 32 elements at once into one 64-byte register
+		__m512i Lower = _mm512_loadu_si512(
+			reinterpret_cast<__m512i*>(&Array16[i])
+		);
+		__m512i Upper = _mm512_loadu_si512(
+			reinterpret_cast<__m512i*>(&Array16[Count - i - 32])
+		);
+
+		// Reverse the byte order of each 128-bit lane
+		Lower = _mm512_permutexvar_epi16(ShuffleRev16, Lower);
+		Upper = _mm512_permutexvar_epi16(ShuffleRev16, Upper);
+
+		// Place them at their swapped position
+		_mm512_storeu_si512(
+			reinterpret_cast<__m512i*>(&Array16[i]),
+			Upper
+		);
+		_mm512_storeu_si512(
+			reinterpret_cast<__m512i*>(&Array16[Count - i - 32]),
+			Lower
+		);
+
+		// 32 elements at a time
+		i += 32;
+	}
+#endif
 	// AVX-2
 #if defined(__AVX2__)
 	for( std::size_t j = i; j < ((Count / 2) / 16); ++j )
