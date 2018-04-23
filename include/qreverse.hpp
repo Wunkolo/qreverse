@@ -300,7 +300,43 @@ inline void qReverse<2>(void* Array, std::size_t Count)
 {
 	std::uint16_t* Array16 = reinterpret_cast<std::uint16_t*>(Array);
 	std::size_t i = 0;
+	// AVX-2
+#if defined(__AVX2__)
+	for( std::size_t j = i; j < ((Count / 2) / 16); ++j )
+	{
+		const __m256i ShuffleRev = _mm256_set_epi8(
+			1, 0, 3, 2, 5, 4, 7, 6, 9, 8, 11, 10, 13, 12, 15, 14,
+			1, 0, 3, 2, 5, 4, 7, 6, 9, 8, 11, 10, 13, 12, 15, 14
+		);
+		// Load 16 elements at once into one 32-byte register
+		__m256i Lower = _mm256_loadu_si256(
+			reinterpret_cast<__m256i*>(&Array16[i])
+		);
+		__m256i Upper = _mm256_loadu_si256(
+			reinterpret_cast<__m256i*>(&Array16[Count - i - 16])
+		);
 
+		// Reverse the byte order of our 32-byte vectors
+		Lower = _mm256_shuffle_epi8(Lower,ShuffleRev);
+		Upper = _mm256_shuffle_epi8(Upper,ShuffleRev);
+
+		Lower = _mm256_permute2x128_si256(Lower,Lower,1);
+		Upper = _mm256_permute2x128_si256(Upper,Upper,1);
+
+		// Place them at their swapped position
+		_mm256_storeu_si256(
+			reinterpret_cast<__m256i*>(&Array16[i]),
+			Upper
+		);
+		_mm256_storeu_si256(
+			reinterpret_cast<__m256i*>(&Array16[Count - i - 16]),
+			Lower
+		);
+
+		// 32 elements at a time
+		i += 16;
+	}
+#endif
 	// SSSE3
 #if defined(__SSSE3__)
 	for( std::size_t j = i; j < ((Count / 2) / 8); ++j )
