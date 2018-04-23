@@ -467,6 +467,38 @@ inline void qReverse<8>(void* Array, std::size_t Count)
 	std::uint64_t* Array64 = reinterpret_cast<std::uint64_t*>(Array);
 	std::size_t i = 0;
 
+	// AVX-2
+#if defined(__AVX2__)
+	for( std::size_t j = i; j < ((Count / 2) / 4); ++j )
+	{
+		// Load 4 elements at once into one 32-byte register
+		__m256i Lower = _mm256_loadu_si256(
+			reinterpret_cast<__m256i*>(&Array64[i])
+		);
+		__m256i Upper = _mm256_loadu_si256(
+			reinterpret_cast<__m256i*>(&Array64[Count - i - 4])
+		);
+
+		Lower = _mm256_alignr_epi8(Lower, Lower, 8);
+		Upper = _mm256_alignr_epi8(Upper, Upper, 8);
+
+		Lower = _mm256_permute2x128_si256(Lower,Lower,1);
+		Upper = _mm256_permute2x128_si256(Upper,Upper,1);
+
+		// Place them at their swapped position
+		_mm256_storeu_si256(
+			reinterpret_cast<__m256i*>(&Array64[i]),
+			Upper
+		);
+		_mm256_storeu_si256(
+			reinterpret_cast<__m256i*>(&Array64[Count - i - 4]),
+			Lower
+		);
+
+		// 4 elements at a time
+		i += 4;
+	}
+#endif
 	// SSSE3
 #if defined(__SSSE3__)
 	for( std::size_t j = i; j < ((Count / 2) / 2); ++j )
