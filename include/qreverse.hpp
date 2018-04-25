@@ -48,6 +48,7 @@
 #elif defined(__ARM_NEON)
 
 	#include <arm_neon.h>
+
 	#if defined(_MSC_VER)
 	
 	inline std::uint64_t Swap64(std::uint64_t x)
@@ -264,6 +265,36 @@ inline void qReverse<1>(void* Array, std::size_t Count)
 		);
 		_mm_storeu_si128(
 			reinterpret_cast<__m128i*>(&Array8[Count - i - 16]),
+			Lower
+		);
+
+		// 16 elements at a time
+		i += 16;
+	}
+#endif
+	// NEON
+#if defined(__ARM_NEON)
+	for( std::size_t j = i; j < ((Count / 2) / 16); ++j )
+	{
+		// Load 16 elements at once into one 16-byte register
+		uint8x16_t Lower = vld1q_u8( &Array8[i] );
+		uint8x16_t Upper = vld1q_u8( &Array8[Count - i - 16] );
+
+		// Reverse 8-bit integers in each 64-bit lane
+		// Reverse the 64-bit lanes
+		Lower = vrev64q_u8( Lower );
+		Lower = vextq_u8( Lower, Lower, 8 );
+
+		Upper = vrev64q_u8(Upper);
+		Upper = vextq_u8( Upper, Upper, 8 );
+
+		// Place them at their swapped position
+		vst1q_u8(
+			&Array8[i],
+			Upper
+		);
+		vst1q_u8(
+			&Array8[Count - i - 16],
 			Lower
 		);
 
