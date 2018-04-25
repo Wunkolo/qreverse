@@ -485,6 +485,36 @@ inline void qReverse<2>(void* Array, std::size_t Count)
 		i += 8;
 	}
 #endif
+	// NEON
+#if defined(__ARM_NEON)
+	for( std::size_t j = i; j < ((Count / 2) / 8); ++j )
+	{
+		// Load 8 elements at once into one 16-byte register
+		uint16x8_t Lower = vld1q_u16( &Array16[i] );
+		uint16x8_t Upper = vld1q_u16( &Array16[Count - i - 8] );
+
+		// Reverse 16-bit integers in each 64-bit lane
+		// Reverse the 64-bit lanes
+		Lower = vrev64q_u16( Lower );
+		Lower = vextq_u16( Lower, Lower, 4 );
+
+		Upper = vrev64q_u16(Upper);
+		Upper = vextq_u16( Upper, Upper, 4 );
+
+		// Place them at their swapped position
+		vst1q_u16(
+			&Array16[i],
+			Upper
+		);
+		vst1q_u16(
+			&Array16[Count - i - 8],
+			Lower
+		);
+
+		// 8 elements at a time
+		i += 8;
+	}
+#endif
 
 	// Naive swaps
 	for( ; i < Count / 2; ++i )
@@ -599,7 +629,36 @@ inline void qReverse<4>(void* Array, std::size_t Count)
 		i += 4;
 	}
 #endif
+	// NEON
+#if defined(__ARM_NEON)
+	for( std::size_t j = i; j < ((Count / 2) / 4); ++j )
+	{
+		// Load 4 elements at once into one 4-byte register
+		uint32x4_t Lower = vld1q_u32( &Array32[i] );
+		uint32x4_t Upper = vld1q_u32( &Array32[Count - i - 4] );
 
+		// Reverse 32-bit integers in each 64-bit lane
+		// Reverse the 64-bit lanes
+		Lower = vrev64q_u32( Lower );
+		Lower = vextq_u32( Lower, Lower, 2 );
+
+		Upper = vrev64q_u32(Upper);
+		Upper = vextq_u32( Upper, Upper, 2 );
+
+		// Place them at their swapped position
+		vst1q_u32(
+			&Array32[i],
+			Upper
+		);
+		vst1q_u32(
+			&Array32[Count - i - 4],
+			Lower
+		);
+
+		// 4 elements at a time
+		i += 4;
+	}
+#endif
 	// Naive swaps
 	for( ; i < Count / 2; ++i )
 	{
@@ -706,6 +765,32 @@ inline void qReverse<8>(void* Array, std::size_t Count)
 		);
 		_mm_storeu_si128(
 			reinterpret_cast<__m128i*>(&Array64[Count - i - 2]),
+			Lower
+		);
+
+		// 2 elements at a time
+		i += 2;
+	}
+#endif
+	// NEON
+#if defined(__ARM_NEON)
+	for( std::size_t j = i; j < ((Count / 2) / 2); ++j )
+	{
+		// Load 2 elements at once into one 2-byte register
+		uint64x2_t Lower = vld1q_u64( &Array64[i] );
+		uint64x2_t Upper = vld1q_u64( &Array64[Count - i - 2] );
+
+		// Reverse the 64-bit lanes
+		Lower = vextq_u64( Lower, Lower, 1 );
+		Upper = vextq_u64( Upper, Upper, 1 );
+
+		// Place them at their swapped position
+		vst1q_u64(
+			&Array64[i],
+			Upper
+		);
+		vst1q_u64(
+			&Array64[Count - i - 2],
 			Lower
 		);
 
