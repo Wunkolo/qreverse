@@ -809,3 +809,89 @@ inline void qReverse<8>(void* Array, std::size_t Count)
 		Array64[Count - i - 1] = Temp;
 	}
 }
+
+// 16 byte elements
+template<>
+inline void qReverse<16>(void* Array, std::size_t Count)
+{
+	struct uint128_t
+	{
+		std::uint64_t u64[2];
+	};
+	uint128_t* Array128 = reinterpret_cast<uint128_t*>(Array);
+	std::size_t i = 0;
+
+	// AVX-512BW/F
+#if defined(__AVX512F__) && defined(__AVX512BW__)
+	for( std::size_t j = i; j < ((Count / 2) / 4); ++j )
+	{
+		const __m512i ShuffleRev = _mm512_set_epi64(
+			1, 0, 3, 2, 5, 4, 7, 6
+		);
+		// Load 4 elements at once into one 64-byte register
+		__m512i Lower = _mm512_loadu_si512(
+			reinterpret_cast<__m512i*>(&Array128[i])
+		);
+		__m512i Upper = _mm512_loadu_si512(
+			reinterpret_cast<__m512i*>(&Array128[Count - i - 4])
+		);
+
+		// Reverse the byte order of each 128-bit lane
+		Lower = _mm512_permutexvar_epi64( ShuffleRev, Lower );
+		Upper = _mm512_permutexvar_epi64( ShuffleRev, Upper );
+
+		// Place them at their swapped position
+		_mm512_storeu_si512(
+			reinterpret_cast<__m512i*>(&Array128[i]),
+			Upper
+		);
+		_mm512_storeu_si512(
+			reinterpret_cast<__m512i*>(&Array128[Count - i - 4]),
+			Lower
+		);
+
+		// 4 elements at a time
+		i += 4;
+	}
+#endif
+
+	// AVX-2
+#if defined(__AVX2__)
+	for( std::size_t j = i; j < ((Count / 2) / 2); ++j )
+	{
+		// Load 2 elements at once into one 32-byte register
+		__m256i Lower = _mm256_loadu_si256(
+			reinterpret_cast<__m256i*>(&Array128[i])
+		);
+		__m256i Upper = _mm256_loadu_si256(
+			reinterpret_cast<__m256i*>(&Array128[Count - i - 2])
+		);
+
+		Lower = _mm256_permute4x64_epi64( Lower, _MM_SHUFFLE(0,1,2,3) );
+		Upper = _mm256_permute4x64_epi64( Upper, _MM_SHUFFLE(0,1,2,3) );
+
+		// Place them at their swapped position
+		_mm256_storeu_si256(
+			reinterpret_cast<__m256i*>(&Array128[i]),
+			Upper
+		);
+		_mm256_storeu_si256(
+			reinterpret_cast<__m256i*>(&Array128[Count - i - 2]),
+			Lower
+		);
+
+		// 2 elements at a time
+		i += 2;
+	}
+#endif
+
+	// Naive swaps
+	for( ; i < Count / 2; ++i )
+	{
+		// Exchange the upper and lower element as we work our
+		// way down to the middle from either end
+		uint128_t Temp(Array128[i]);
+		Array128[i] = Array128[Count - i - 1];
+		Array128[Count - i - 1] = Temp;
+	}
+}
