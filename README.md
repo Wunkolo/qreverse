@@ -2,6 +2,14 @@
 
 qReverse is an architecture-accelerated array reversal algorithm intended as a personal study to design a fast AoS reversal algorithm utilizing SIMD.
 
+|||||||
+|:-:|:-:|:-:|:-:|:-:|:-:|
+||Serial|bswap/rev|SSSE3/Neon|AVX2|AVX512
+|Pattern|![Serial](images/Serial.gif)|![bswap/rev](images/Swap64.gif)|![SSSE3](images/SSSE3.gif)|![AVX2](images/AVX2.gif)|![AVX512](images/AVX512.gif)|
+|Processor|Speedup|||||
+|`i3-6100`|-|x5.869|x16.008|x15.740|-|
+|`BCM2837`|-|x7.709|x7.722|-|-|
+
 ---
 
 Array reversal implementations typically involve swapping both ends of the array and working down to the middle-most elements. C++ being type-aware treats array elements as objects and will call overloaded class operators such as `operator=` or a `copy by reference` constructor where available. Many implementations of a "swap" function would use an intermediate temporary variable to make the exchange which would require a minimum of two calls to an object's `operator=` and at least one call to an object's `copy by reference` constructor. Some other novel algorithms use the xor-swap technique after making some assumptions about the data being swapped(integer-data, register-bound, no overrides, etc). `std::swap` also allows an overload of `swap` for a type to be used if it is within the same namespace as your type should you want to expose your overloaded method to C++'s standard algorithm library during the reversal
