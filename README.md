@@ -7,7 +7,7 @@ qReverse is an architecture-accelerated array reversal algorithm intended as a p
 ||Serial|bswap/rev|SSSE3/Neon|AVX2|AVX512
 |Pattern|![Serial](images/Serial.gif)|![bswap/rev](images/Swap64.gif)|![SSSE3](images/SSSE3.gif)|![AVX2](images/AVX2.gif)|![AVX512](images/AVX512.gif)|
 |Processor|Speedup|||||
-|`i3-6100`|-|x5.869|x16.008|x15.740|-|
+|`i3-6100`|-|x15.8|x10.5|x16.053|-|
 |`BCM2837`|-|x7.709|x7.722|-|-|
 
 ---
@@ -415,30 +415,30 @@ And now some benchmarks: on a _i3-6100_ with _8gb of DDR4 ram_. I automated the 
 
 Element Count|std::reverse|qReverse|Speedup Factor
 ---|---|---|---
-8|28 ns|25 ns|**1.120**
-16|32 ns|25 ns|**1.280**
-32|39 ns|27 ns|**1.444**
-64|55 ns|30 ns|**1.833**
-128|85 ns|35 ns|**2.429**
-256|151 ns|38 ns|**3.974**
-512|273 ns|44 ns|**6.205**
-1024|491 ns|54 ns|**9.093**
-100|68 ns|33 ns|**2.061**
-1000|489 ns|53 ns|**9.226**
-10000|8105 ns|295 ns|**27.475**
-100000|64744 ns|4248 ns|**15.241**
-1000000|652875 ns|41942 ns|**15.566**
-59|48 ns|30 ns|**1.600**
-79|57 ns|33 ns|**1.727**
-173|97 ns|35 ns|**2.771**
-6133|3557 ns|195 ns|**18.241**
-10177|6853 ns|965 ns|**7.102**
-25253|16670 ns|651 ns|**25.607**
-31391|18548 ns|1206 ns|**15.380**
-50432|32916 ns|1419 ns|**23.197**
+8|19 ns|19 ns|*1.000*
+16|20 ns|19 ns|**1.053**
+32|24 ns|23 ns|**1.043**
+64|36 ns|23 ns|**1.565**
+128|54 ns|21 ns|**2.571**
+256|90 ns|22 ns|**4.091**
+512|159 ns|26 ns|**6.115**
+1024|298 ns|35 ns|**8.514**
+100|43 ns|21 ns|**2.048**
+1000|290 ns|36 ns|**8.056**
+10000|2740 ns|191 ns|**14.346**
+100000|27511 ns|1739 ns|**15.820**
+1000000|279525 ns|24710 ns|**11.312**
+59|32 ns|22 ns|**1.455**
+79|43 ns|27 ns|**1.593**
+173|63 ns|29 ns|**2.172**
+6133|1680 ns|127 ns|**13.228**
+10177|2784 ns|190 ns|**14.653**
+25253|6864 ns|455 ns|**15.086**
+31391|8548 ns|564 ns|**15.156**
+50432|13897 ns|875 ns|**15.882**
 
 
-And so across the board there are speedups up to _**x27!**_ before dipping down a bit for the more larger array sizes potentially due to the accumulation of cache misses with such large amounts of data. The algorithm reaches out to either end of a potentially massive array which lends itself to an accumulation of cache misses at some point. Still a _very_ large and significant speedup over `std::reverse` consistantly without trying to do some `_mm_prefetch` arithmetic to get the cache to behave.
+And so across the board there are speedups up to _**x15.8!**_ before dipping down a bit for the more larger array sizes potentially due to the accumulation of cache misses with such large amounts of data. The algorithm reaches out to either end of a potentially massive array which lends itself to an accumulation of cache misses at some point. Still a _very_ large and significant speedup over `std::reverse` consistantly without trying to do some `_mm_prefetch` arithmetic to get the cache to behave.
 
 # SIMD
 
@@ -513,29 +513,30 @@ Now for some speed tests.
 
 Element Count|std::reverse|qReverse|Speedup Factor
 ---|---|---|---
-8|26 ns|24 ns|**1.083**
-16|30 ns|24 ns|**1.250**
-32|37 ns|24 ns|**1.542**
-64|52 ns|26 ns|**2.000**
-128|79 ns|28 ns|**2.821**
-256|139 ns|32 ns|**4.344**
-512|264 ns|42 ns|**6.286**
-1024|1135 ns|59 ns|**19.237**
-100|70 ns|28 ns|**2.500**
-1000|458 ns|59 ns|**7.763**
-10000|7687 ns|370 ns|**20.776**
-100000|63227 ns|5796 ns|**10.909**
-1000000|671709 ns|61417 ns|**10.937**
-59|52 ns|30 ns|**1.733**
-79|61 ns|31 ns|**1.968**
-173|106 ns|34 ns|**3.118**
-6133|3602 ns|602 ns|**5.983**
-10177|7440 ns|419 ns|**17.757**
-25253|15913 ns|929 ns|**17.129**
-31391|19867 ns|1839 ns|**10.803**
-50432|32826 ns|3170 ns|**10.355**
+8|19 ns|19 ns|*1.000*
+16|22 ns|20 ns|**1.100**
+32|27 ns|20 ns|**1.350**
+64|37 ns|21 ns|**1.762**
+128|55 ns|23 ns|**2.391**
+256|91 ns|24 ns|**3.792**
+512|158 ns|31 ns|**5.097**
+1024|297 ns|42 ns|**7.071**
+100|43 ns|21 ns|**2.048**
+1000|291 ns|42 ns|**6.929**
+10000|2743 ns|261 ns|**10.510**
+100000|27523 ns|2966 ns|**9.280**
+1000000|279812 ns|33832 ns|**8.271**
+59|32 ns|21 ns|**1.524**
+79|43 ns|24 ns|**1.792**
+173|62 ns|29 ns|**2.138**
+6133|1683 ns|185 ns|**9.097**
+10177|2787 ns|291 ns|**9.577**
+25253|6862 ns|712 ns|**9.638**
+31391|8546 ns|916 ns|**9.330**
+50432|13893 ns|1497 ns|**9.281**
 
-Speedups of up to _**x20**_!.. but this is lower than the `bswap` version which reached up to _**x27**_? Maybe some loop unrolling or some prefetching might help this algorithm play nice with the cache. In this implementation only two out of the available 8 registers are being used as well so there is some great room for improvement(Todo)
+
+Speedups of up to _**x10.5**_!... but this is lower than the `bswap` version which reached up to _**x15.8**_? Maybe some loop unrolling or some prefetching might help this algorithm play nice with the cache. In this implementation only two out of the available 8 registers are being used as well so there is some great room for improvement(Todo)
 
 # AVX2
 
@@ -614,29 +615,30 @@ Benchmarks:
 
 Element Count|std::reverse|qReverse|Speedup Factor
 ---|---|---|---
-8|28 ns|25 ns|**1.120**
-16|32 ns|26 ns|**1.231**
-32|39 ns|25 ns|**1.560**
-64|55 ns|26 ns|**2.115**
-128|85 ns|28 ns|**3.036**
-256|151 ns|31 ns|**4.871**
-512|273 ns|37 ns|**7.378**
-1024|515 ns|49 ns|**10.510**
-100|72 ns|33 ns|**2.182**
-1000|504 ns|54 ns|**9.333**
-10000|8454 ns|268 ns|**31.545**
-100000|69353 ns|4801 ns|**14.446**
-1000000|637676 ns|49960 ns|**12.764**
-59|54 ns|30 ns|**1.800**
-79|63 ns|31 ns|**2.032**
-173|106 ns|36 ns|**2.944**
-6133|4237 ns|178 ns|**23.803**
-10177|6738 ns|261 ns|**25.816**
-25253|16497 ns|1327 ns|**12.432**
-31391|18951 ns|1460 ns|**12.980**
-50432|33806 ns|2155 ns|**15.687**
+8|19 ns|19 ns|*1.000*
+16|21 ns|21 ns|*1.000*
+32|26 ns|20 ns|**1.300**
+64|37 ns|22 ns|**1.682**
+128|54 ns|20 ns|**2.700**
+256|91 ns|24 ns|**3.792**
+512|159 ns|27 ns|**5.889**
+1024|298 ns|36 ns|**8.278**
+100|45 ns|20 ns|**2.250**
+1000|292 ns|36 ns|**8.111**
+10000|2739 ns|189 ns|**14.492**
+100000|27515 ns|1714 ns|**16.053**
+1000000|279701 ns|25417 ns|**11.004**
+59|32 ns|21 ns|**1.524**
+79|44 ns|25 ns|**1.760**
+173|63 ns|29 ns|**2.172**
+6133|1681 ns|127 ns|**13.236**
+10177|2782 ns|192 ns|**14.490**
+25253|6863 ns|449 ns|**15.285**
+31391|8545 ns|556 ns|**15.369**
+50432|13888 ns|875 ns|**15.872**
 
-A speedup of up to _**x31**_!
+
+A speedup of up to _**x16.053**_!
 
 # AVX512
 
