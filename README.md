@@ -412,6 +412,8 @@ inline void qReverse<1>(void* Array, std::size_t Count)
 }
 ```
 
+On some architectures and compilers, the [movebe](https://www.felixcloutier.com/x86/MOVBE.html) instruction may be emitted which is a CPU instruction that can either read OR write from a memory location AND swap the endian of it, all in one instruction. This instruction is supported since the `haswell` architecture of intel processors and `excavator` architecture of AMD processors and will be used automatically if you use `-march=native` with a processor that supports it.
+
 And now some benchmarks: on a _i3-6100_ with _8gb of DDR4 ram_. I automated the benchmark process across several different array-sizes giving each array-size `10,000` array-reversal trials before getting an average execution time for the given array-size. Using g++ compile flags: `-m64 -Ofast -march=native` these are the results of comparing the execution time of the current bswap `qreverse` algorithm against `std::reverse`:
 
 Element Count|std::reverse|qReverse|Speedup Factor
