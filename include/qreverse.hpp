@@ -157,7 +157,7 @@ inline void qReverse<1>(void* Array, std::size_t Count)
 	std::size_t i = 0;
 	// AVX-512BW/F
 #if defined(__AVX512F__) && defined(__AVX512BW__)
-	for( std::size_t j = i; j < ((Count / 2) / 64); ++j )
+	for( std::size_t j = i / 64; j < ((Count / 2) / 64); ++j )
 	{
 		// Reverses the 16 bytes of the four  128-bit lanes in a 512-bit register
 		const __m512i ShuffleRev8 = _mm512_set_epi32(
@@ -204,7 +204,7 @@ inline void qReverse<1>(void* Array, std::size_t Count)
 #endif
 	// AVX-2
 #if defined(__AVX2__)
-	for( std::size_t j = i; j < ((Count / 2) / 32); ++j )
+	for( std::size_t j = i / 32; j < ((Count / 2) / 32); ++j )
 	{
 		const __m256i ShuffleRev = _mm256_set_epi8(
 			0, 1, 2, 3, 4, 5, 6, 7, 8, 9,10,11,12,13,14,15,
@@ -241,7 +241,7 @@ inline void qReverse<1>(void* Array, std::size_t Count)
 #endif
 	// SSSE3
 #if defined(__SSSE3__)
-	for( std::size_t j = i; j < ((Count / 2) / 16); ++j )
+	for( std::size_t j = i / 16; j < ((Count / 2) / 16); ++j )
 	{
 		const __m128i ShuffleRev = _mm_set_epi8(
 			0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15
@@ -274,7 +274,7 @@ inline void qReverse<1>(void* Array, std::size_t Count)
 #endif
 	// NEON
 #if defined(__ARM_NEON)
-	for( std::size_t j = i; j < ((Count / 2) / 16); ++j )
+	for( std::size_t j = i / 16; j < ((Count / 2) / 16); ++j )
 	{
 		// Load 16 elements at once into one 16-byte register
 		uint8x16_t Lower = vld1q_u8( &Array8[i] );
@@ -303,7 +303,7 @@ inline void qReverse<1>(void* Array, std::size_t Count)
 	}
 #endif
 	// BSWAP 64
-	for( std::size_t j = i; j < ((Count / 2) / 8); ++j )
+	for( std::size_t j = i / 8; j < ((Count / 2) / 8); ++j )
 	{
 		// Get bswapped versions of our Upper and Lower 8-byte chunks
 		std::uint64_t Lower = Swap64(
@@ -378,7 +378,7 @@ inline void qReverse<2>(void* Array, std::size_t Count)
 	std::size_t i = 0;
 	// AVX-512BW/F
 #if defined(__AVX512F__) && defined(__AVX512BW__)
-	for( std::size_t j = i; j < ((Count / 2) / 32); ++j )
+	for( std::size_t j = i / 32; j < ((Count / 2) / 32); ++j )
 	{
 		const __m512i ShuffleRev = _mm512_set_epi64(
 			0x00000100020003,
@@ -419,7 +419,7 @@ inline void qReverse<2>(void* Array, std::size_t Count)
 #endif
 	// AVX-2
 #if defined(__AVX2__)
-	for( std::size_t j = i; j < ((Count / 2) / 16); ++j )
+	for( std::size_t j = i / 16; j < ((Count / 2) / 16); ++j )
 	{
 		const __m256i ShuffleRev = _mm256_set_epi8(
 			1, 0, 3, 2, 5, 4, 7, 6, 9, 8, 11, 10, 13, 12, 15, 14,
@@ -455,7 +455,7 @@ inline void qReverse<2>(void* Array, std::size_t Count)
 #endif
 	// SSSE3
 #if defined(__SSSE3__)
-	for( std::size_t j = i; j < ((Count / 2) / 8); ++j )
+	for( std::size_t j = i / 8; j < ((Count / 2) / 8); ++j )
 	{
 		const __m128i ShuffleRev = _mm_set_epi8(
 			1, 0, 3, 2, 5, 4, 7, 6, 9, 8, 11, 10, 13, 12, 15, 14
@@ -487,7 +487,7 @@ inline void qReverse<2>(void* Array, std::size_t Count)
 #endif
 	// NEON
 #if defined(__ARM_NEON)
-	for( std::size_t j = i; j < ((Count / 2) / 8); ++j )
+	for( std::size_t j = i / 8; j < ((Count / 2) / 8); ++j )
 	{
 		// Load 8 elements at once into one 16-byte register
 		uint16x8_t Lower = vld1q_u16( &Array16[i] );
@@ -536,7 +536,7 @@ inline void qReverse<4>(void* Array, std::size_t Count)
 
 	// AVX-512BW/F
 #if defined(__AVX512F__) && defined(__AVX512BW__)
-	for( std::size_t j = i; j < ((Count / 2) / 16); ++j )
+	for( std::size_t j = i / 16; j < ((Count / 2) / 16); ++j )
 	{
 		const __m512i ShuffleRev = _mm512_set_epi32(
 			0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15
@@ -570,7 +570,7 @@ inline void qReverse<4>(void* Array, std::size_t Count)
 #endif
 	// AVX-2
 #if defined(__AVX2__)
-	for( std::size_t j = i; j < ((Count / 2) / 8); ++j )
+	for( std::size_t j = i / 8; j < ((Count / 2) / 8); ++j )
 	{
 		// Load 8 elements at once into one 32-byte register
 		__m256i Lower = _mm256_loadu_si256(
@@ -602,7 +602,7 @@ inline void qReverse<4>(void* Array, std::size_t Count)
 #endif
 	// SSSE3
 #if defined(__SSSE3__)
-	for( std::size_t j = i; j < ((Count / 2) / 4); ++j )
+	for( std::size_t j = i / 4; j < ((Count / 2) / 4); ++j )
 	{
 		// Load 4 elements at once into one 16-byte register
 		__m128i Lower = _mm_loadu_si128(
@@ -631,7 +631,7 @@ inline void qReverse<4>(void* Array, std::size_t Count)
 #endif
 	// NEON
 #if defined(__ARM_NEON)
-	for( std::size_t j = i; j < ((Count / 2) / 4); ++j )
+	for( std::size_t j = i / 4; j < ((Count / 2) / 4); ++j )
 	{
 		// Load 4 elements at once into one 4-byte register
 		uint32x4_t Lower = vld1q_u32( &Array32[i] );
@@ -679,7 +679,7 @@ inline void qReverse<8>(void* Array, std::size_t Count)
 
 	// AVX-512BW/F
 #if defined(__AVX512F__) && defined(__AVX512BW__)
-	for( std::size_t j = i; j < ((Count / 2) / 8); ++j )
+	for( std::size_t j = i / 8; j < ((Count / 2) / 8); ++j )
 	{
 		const __m512i ShuffleRev = _mm512_set_epi64(
 			0, 1, 2, 3, 4, 5, 6, 7
@@ -713,7 +713,7 @@ inline void qReverse<8>(void* Array, std::size_t Count)
 #endif
 	// AVX-2
 #if defined(__AVX2__)
-	for( std::size_t j = i; j < ((Count / 2) / 4); ++j )
+	for( std::size_t j = i / 4; j < ((Count / 2) / 4); ++j )
 	{
 		// Load 4 elements at once into one 32-byte register
 		__m256i Lower = _mm256_loadu_si256(
@@ -745,7 +745,7 @@ inline void qReverse<8>(void* Array, std::size_t Count)
 #endif
 	// SSSE3
 #if defined(__SSSE3__)
-	for( std::size_t j = i; j < ((Count / 2) / 2); ++j )
+	for( std::size_t j = i / 2; j < ((Count / 2) / 2); ++j )
 	{
 		// Load 2 elements at once into one 16-byte register
 		__m128i Lower = _mm_loadu_si128(
@@ -774,7 +774,7 @@ inline void qReverse<8>(void* Array, std::size_t Count)
 #endif
 	// NEON
 #if defined(__ARM_NEON)
-	for( std::size_t j = i; j < ((Count / 2) / 2); ++j )
+	for( std::size_t j = i / 2; j < ((Count / 2) / 2); ++j )
 	{
 		// Load 2 elements at once into one 2-byte register
 		uint64x2_t Lower = vld1q_u64( &Array64[i] );
@@ -823,7 +823,7 @@ inline void qReverse<16>(void* Array, std::size_t Count)
 
 	// AVX-512BW/F
 #if defined(__AVX512F__) && defined(__AVX512BW__)
-	for( std::size_t j = i; j < ((Count / 2) / 4); ++j )
+	for( std::size_t j = i / 4; j < ((Count / 2) / 4); ++j )
 	{
 		const __m512i ShuffleRev = _mm512_set_epi64(
 			1, 0, 3, 2, 5, 4, 7, 6
@@ -857,7 +857,7 @@ inline void qReverse<16>(void* Array, std::size_t Count)
 
 	// AVX-2
 #if defined(__AVX2__)
-	for( std::size_t j = i; j < ((Count / 2) / 2); ++j )
+	for( std::size_t j = i / 2; j < ((Count / 2) / 2); ++j )
 	{
 		// Load 2 elements at once into one 32-byte register
 		__m256i Lower = _mm256_loadu_si256(
