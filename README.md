@@ -345,7 +345,7 @@ inline void qReverse<1>(void* Array, std::size_t Count)
 	// Using a new iteration variable "j" to illustrate that we know
 	// the exact amount of times we have to use our chunk-swaps
 	// BSWAP 64
-	for( std::size_t j = i; j < ((Count / 2) / 8); ++j )
+	for( std::size_t j = i / 8; j < ((Count / 2) / 8); ++j )
 	{
 		// Get bswapped versions of our Upper and Lower 8-byte chunks
 		std::uint64_t Lower = Swap64(
@@ -470,7 +470,7 @@ Now to draft a `SSSE3` byte swapping implementation and create a simulated 16-by
 #include <tmmintrin.h>
 
 ...
-for( std::size_t j = i; j < ((Count / 2) / 16); ++j )
+for( std::size_t j = i / 16; j < ((Count / 2) / 16); ++j )
 {
 	const __m128i ShuffleRev = _mm_set_epi8(
 		0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15
@@ -501,7 +501,7 @@ for( std::size_t j = i; j < ((Count / 2) / 16); ++j )
 	i += 16;
 }
 // Right above the Swap64 implementation...
-for( std::size_t j = i ; j < ( (Count/2) / 8 ) ; ++j)
+for( std::size_t j = i / 8; j < ( (Count/2) / 8 ) ; ++j)
 ...
 ```
 
@@ -569,7 +569,7 @@ Given two big 256-bit vectors and an 8-byte immediate value it can select how th
 
 ```cpp
 ...
-for( std::size_t j = i; j < ((Count / 2) / 32); ++j )
+for( std::size_t j = i / 32; j < ((Count / 2) / 32); ++j )
 {
 	const __m256i ShuffleRev = _mm256_set_epi8(
 		0, 1, 2, 3, 4, 5, 6, 7, 8, 9,10,11,12,13,14,15,
@@ -684,7 +684,7 @@ The full `AVX512` implementation:
 
 ```cpp
 ...
-	for( std::size_t j = i; j < ((Count / 2) / 64); ++j )
+	for( std::size_t j = i / 64; j < ((Count / 2) / 64); ++j )
 	{
 		// Reverses the 16 bytes of the four  128-bit lanes in a 512-bit register
 		const __m512i ShuffleRev8 = _mm512_set_epi32(
