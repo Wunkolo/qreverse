@@ -7,9 +7,10 @@ qReverse is an architecture-accelerated array reversal algorithm intended as a p
 ||Serial|bswap/rev|SSSE3/Neon|AVX2|AVX512
 |Pattern|![Serial](images/Serial.gif)|![bswap/rev](images/Swap64.gif)|![SSSE3](images/SSSE3.gif)|![AVX2](images/AVX2.gif)|![AVX512](images/AVX512.gif)|
 |Processor|Speedup|||||
-|[i3-6100](https://en.wikichip.org/wiki/intel/core_i3/i3-6100)|-|x15.8|x10.5|x16.053|-|
-|[i5-8600K](https://en.wikichip.org/wiki/intel/core_i5/i5-8600k)|-|x15.905|x10.21|x16.076|-|
-|[BCM2837](https://en.wikipedia.org/wiki/Broadcom_Corporation#Raspberry_Pi)|-|x7.391|x7.718*|-|-|
+|[i3-6100](https://en.wikichip.org/wiki/intel/core_i3/i3-6100)|x1|x15.8|x10.5|x16.053|-|
+|[i5-8600K](https://en.wikichip.org/wiki/intel/core_i5/i5-8600k)|x1|x15.905|x10.21|x16.076|-|
+|[E5-2697 v4](https://en.wikichip.org/wiki/intel/core_i5/i5-8600k)|x1|x16.701|x15.716|x19.141|-|
+|[BCM2837](https://en.wikipedia.org/wiki/Broadcom_Corporation#Raspberry_Pi)|x1|x7.391|x7.718|-|-|
 
 ---
 
