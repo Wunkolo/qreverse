@@ -7,10 +7,12 @@ qReverse is an architecture-accelerated array reversal algorithm intended as a p
 ||Serial|bswap/rev|SSSE3/Neon|AVX2|AVX512
 |Pattern|![Serial](images/Serial.gif)|![bswap/rev](images/Swap64.gif)|![SSSE3](images/SSSE3.gif)|![AVX2](images/AVX2.gif)|![AVX512](images/AVX512.gif)|
 |Processor|Speedup|||||
+|[i9-7900x](https://en.wikichip.org/wiki/intel/core_i9/i9-7900x)|x1|x15.386|x10.417|x22.032|x22.357|
 |[i3-6100](https://en.wikichip.org/wiki/intel/core_i3/i3-6100)|x1|x15.8|x10.5|x16.053|-|
 |[i5-8600K](https://en.wikichip.org/wiki/intel/core_i5/i5-8600k)|x1|x15.905|x10.21|x16.076|-|
 |[E5-2697 v4](https://en.wikichip.org/wiki/intel/core_i5/i5-8600k)|x1|x16.701|x15.716|x19.141|-|
 |[BCM2837](https://en.wikipedia.org/wiki/Broadcom_Corporation#Raspberry_Pi)|x1|x7.391|x7.718|-|-|
+
 
 ---
 
@@ -785,29 +787,29 @@ Here the benchmark is compiled using Visual Studio 2017 for x64-Release mode.
 
 Element Count|std::reverse|qReverse|Speedup Factor
 ---|---|---|---
-8|23 ns|26 ns|*0.885*
-16|30 ns|26 ns|**1.154**
-32|34 ns|28 ns|**1.214**
-64|43 ns|31 ns|**1.387**
-128|63 ns|29 ns|**2.172**
-256|101 ns|34 ns|**2.971**
-512|166 ns|32 ns|**5.188**
-1024|289 ns|33 ns|**8.758**
-100|61 ns|33 ns|**1.848**
-1000|282 ns|49 ns|**5.755**
-10000|3010 ns|109 ns|**27.615**
-100000|28380 ns|1394 ns|**20.359**
-1000000|252209 ns|16202 ns|**15.567**
-59|43 ns|31 ns|**1.387**
-79|52 ns|30 ns|**1.733**
-173|73 ns|31 ns|**2.355**
-6133|1769 ns|91 ns|**19.440**
-10177|2994 ns|113 ns|**26.496**
-25253|7726 ns|241 ns|**32.058**
-31391|9252 ns|279 ns|**33.161**
-50432|15203 ns|736 ns|**20.656**
+8|63 ns|59 ns|**1.068**
+16|62 ns|61 ns|**1.016**
+32|74 ns|59 ns|**1.254**
+64|104 ns|61 ns|**1.705**
+128|80 ns|18 ns|**4.444**
+256|90 ns|20 ns|**4.500**
+512|157 ns|22 ns|**7.136**
+1024|276 ns|28 ns|**9.857**
+100|44 ns|20 ns|**2.200**
+1000|269 ns|30 ns|**8.967**
+10000|2504 ns|112 ns|**22.357**
+100000|24222 ns|1368 ns|**17.706**
+1000000|236354 ns|21192 ns|**11.153**
+59|33 ns|21 ns|**1.571**
+79|40 ns|23 ns|**1.739**
+173|58 ns|29 ns|**2.000**
+6133|1438 ns|93 ns|**15.462**
+10177|2481 ns|147 ns|**16.878**
+25253|5794 ns|332 ns|**17.452**
+31391|7397 ns|420 ns|**17.612**
+50432|11915 ns|858 ns|**13.887**
 
-A plateau of speedups up to _**x33**_!
+A plateau of speedups up to _**x22.357**_!
 
 # Misc
 
